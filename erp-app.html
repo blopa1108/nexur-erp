@@ -902,7 +902,7 @@
         <button type="button" class="btn-secondary btn-sm" id="btn-prefactura-file" onclick="document.getElementById('prefactura-file').click()" disabled title="Selecciona un cliente primero"><i class="fas fa-file-arrow-up"></i> Subir archivo de detalle</button>
       </div>
     </div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">El archivo debe tener una columna con el nombre del servicio por fila (ej: SMS, Minutos, DID...). El sistema cuenta cuantas filas hay de cada uno y completa las cantidades.</p>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">El archivo debe tener una columna con el nombre del servicio por fila (ej: SMS, Minutos, DID...). Si ademas tiene una columna "duracion" o "cantidad", se suma esa columna por servicio; si no existe, se cuenta la cantidad de filas de cada uno.</p>
     <div id="prefactura-items" class="mb-2"></div>
     <div class="flex justify-between items-center mb-4">
       <span id="prefactura-uf-note" style="font-size:11px;color:var(--muted)"></span>
@@ -2321,31 +2321,43 @@ function procesarArchivoPrefactura(file) {
       }
       if (!filas.length) { showToast('El archivo esta vacio'); return; }
 
+      // Detectar fila de encabezado y columna de valor ("duracion" o "cantidad")
+      const headers = filas[0].map(h => (h || '').toLowerCase());
+      const valorCol = headers.findIndex(h => h.includes('duracion') || h.includes('cantidad'));
+      const tieneEncabezado = valorCol !== -1 || headers.some(h => h.includes('concepto') || h.includes('tipo') || h.includes('servicio'));
+      const dataRows = tieneEncabezado ? filas.slice(1) : filas;
+
       // Detectar columna que contiene el nombre del concepto/servicio
       const conceptosActivos = Array.from(document.querySelectorAll('#prefactura-items .item-row')).map(row => row.getAttribute('data-concepto'));
       let mejorCol = 0, mejorMatches = -1;
       const numCols = Math.max(...filas.map(f => f.length));
       for (let col = 0; col < numCols; col++) {
-        const matches = filas.filter(f => conceptosActivos.some(c => (f[col] || '').toLowerCase() === c.toLowerCase())).length;
+        const matches = dataRows.filter(f => conceptosActivos.some(c => (f[col] || '').toLowerCase() === c.toLowerCase())).length;
         if (matches > mejorMatches) { mejorMatches = matches; mejorCol = col; }
       }
       if (mejorMatches <= 0) { showToast('No se encontraron filas que coincidan con los servicios contratados de este cliente'); return; }
 
-      // Contar ocurrencias por concepto (saltando posible fila de encabezado)
-      const conteos = {};
-      filas.forEach(f => {
+      // Si existe columna "duracion"/"cantidad" se suma por concepto; si no, se cuentan las filas
+      const cantidades = {};
+      dataRows.forEach(f => {
         const valor = (f[mejorCol] || '').trim();
         const match = conceptosActivos.find(c => c.toLowerCase() === valor.toLowerCase());
-        if (match) conteos[match] = (conteos[match] || 0) + 1;
+        if (!match) return;
+        if (valorCol !== -1) {
+          const num = parseFloat(f[valorCol]);
+          if (!isNaN(num)) cantidades[match] = (cantidades[match] || 0) + num;
+        } else {
+          cantidades[match] = (cantidades[match] || 0) + 1;
+        }
       });
 
       document.querySelectorAll('#prefactura-items .item-row').forEach(row => {
         const concepto = row.getAttribute('data-concepto');
-        if (conteos[concepto] !== undefined) row.querySelector('.pf-cant').value = conteos[concepto];
+        if (cantidades[concepto] !== undefined) row.querySelector('.pf-cant').value = cantidades[concepto];
       });
       recalcPrefactura();
 
-      const resumen = Object.entries(conteos).map(([k, v]) => `${v} ${k}`).join(', ');
+      const resumen = Object.entries(cantidades).map(([k, v]) => `${v} ${k}`).join(', ');
       showToast(`Archivo procesado: ${resumen}`);
     } catch (err) {
       showToast('No se pudo leer el archivo. Verifica el formato.');
