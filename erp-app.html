@@ -303,6 +303,7 @@
     <div class="sidebar-label">Administracion</div>
     <div class="sidebar-item active" onclick="showPage('admin-usuarios')"><i class="fas fa-users-gear"></i> Usuarios</div>
     <div class="sidebar-item" onclick="showPage('admin-roles')"><i class="fas fa-user-shield"></i> Roles y permisos</div>
+    <div class="sidebar-item" onclick="showPage('admin-config')"><i class="fas fa-sliders"></i> Configuracion</div>
   </div>
 
   <!-- ===== CONTENT AREA ===== -->
@@ -599,6 +600,7 @@
               <th class="text-left px-4 py-2">Nombre / Razon social</th><th class="text-left px-4 py-2">RUC/RUT</th>
               <th class="text-left px-4 py-2">Contacto</th><th class="text-left px-4 py-2">Email</th>
               <th class="text-left px-4 py-2">Telefono</th><th class="text-left px-4 py-2">Servicios contratados</th>
+              <th class="text-left px-4 py-2">Contactos</th>
               <th class="text-center px-4 py-2">Acciones</th>
             </tr></thead>
             <tbody id="tbody-clientes"></tbody>
@@ -719,6 +721,20 @@
       </div>
     </div>
 
+    <div class="page" id="page-admin-config">
+      <div class="page-title"><div class="title-left">Configuracion</div></div>
+      <div class="p-6">
+        <div class="card p-5" style="max-width:420px">
+          <label class="form-label">Valor UF (en pesos chilenos)</label>
+          <div class="flex gap-2">
+            <input type="number" min="0" step="0.01" class="form-input" id="config-valor-uf">
+            <button class="btn-primary" onclick="guardarValorUF()"><i class="fas fa-save"></i> Guardar</button>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px">Se usa para convertir a pesos los servicios cuya tarifa este definida en UF (por ejemplo, al calcular el total de una prefactura).</p>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -738,6 +754,13 @@
       <div><label class="form-label">Telefono</label><input class="form-input" id="cliente-telefono" /></div>
     </div>
     <div class="mb-4"><label class="form-label">Direccion</label><input class="form-input" id="cliente-direccion" /></div>
+
+    <div class="flex justify-between items-center mb-2">
+      <label class="form-label" style="margin-bottom:0">Contactos adicionales (administrativos / tecnicos)</label>
+      <button type="button" class="btn-secondary btn-sm" onclick="addContactoRow()"><i class="fas fa-plus"></i> Agregar contacto</button>
+    </div>
+    <div id="cliente-contactos" class="mb-4" style="display:flex;flex-direction:column;gap:8px"></div>
+
     <label class="form-label">Servicios contratados y tarifa</label>
     <div id="cliente-servicios" class="mb-4" style="border:1px solid var(--border);border-radius:7px;padding:10px 12px;display:flex;flex-direction:column;gap:8px"></div>
     <div class="flex justify-end gap-2">
@@ -799,8 +822,9 @@
     </div>
     <label class="form-label">Servicios contratados por el cliente</label>
     <div id="prefactura-items" class="mb-2"></div>
-    <div class="flex justify-end items-center gap-2 mb-4" style="font-size:14px;font-weight:700;color:var(--navy)">
-      Total: <span id="prefactura-total">$0</span>
+    <div class="flex justify-between items-center mb-4">
+      <span id="prefactura-uf-note" style="font-size:11px;color:var(--muted)"></span>
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">Total: <span id="prefactura-total">$0</span></div>
     </div>
     <div class="flex justify-end gap-2">
       <button class="btn-secondary" onclick="closeModal('modal-prefactura')">Cancelar</button>
@@ -1199,7 +1223,8 @@ function renderPage(pageId) {
     'ventas-facturas': renderFacturasVentas,
     'ventas-prefacturas': renderPrefacturas,
     'admin-usuarios': renderUsuarios,
-    'admin-roles': renderRoles
+    'admin-roles': renderRoles,
+    'admin-config': renderConfig
   };
   if (renderers[pageId]) renderers[pageId]();
 }
@@ -1259,12 +1284,13 @@ const NOMINAS_KEY = 'nexur_erp_nominas';
 const ASISTENCIA_KEY = 'nexur_erp_asistencia';
 const VACACIONES_KEY = 'nexur_erp_permisos_vacaciones';
 const PREFACTURAS_KEY = 'nexur_erp_prefacturas';
+const VALOR_UF_KEY = 'nexur_erp_valor_uf';
 
-// Catalogo de servicios facturables (telco). El precio de cada uno se define por cliente en su ficha.
+// Catalogo de servicios facturables (telco). El precio de cada uno se define por cliente en su ficha, en CLP o UF.
 const CONCEPTOS_FACTURACION = [
   { concepto:'SMS', unidad:'por SMS enviado', precioSugerido:25 },
   { concepto:'Minutos', unidad:'por minuto', precioSugerido:18 },
-  { concepto:'SIP Trunk', unidad:'por trunk / mes', precioSugerido:15000 },
+  { concepto:'SIP Trunk', unidad:'por trunk / mes', precioSugerido:0.5 },
   { concepto:'Numeracion 600', unidad:'por numero / mes', precioSugerido:8000 },
   { concepto:'Numeracion 809', unidad:'por numero / mes', precioSugerido:9000 },
   { concepto:'DID', unidad:'por numero / mes', precioSugerido:6000 }
@@ -1273,18 +1299,23 @@ const CONCEPTOS_FACTURACION = [
 function getData(key) { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; }
 function saveData(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 
+function getValorUF() { const v = localStorage.getItem(VALOR_UF_KEY); return v ? Number(v) : 37500; }
+function fmtServicioPrecio(s) { return s.moneda === 'UF' ? `UF ${s.precio}` : fmtMoney(s.precio); }
+
 function getClientes() {
   let d = getData(CLIENTES_KEY);
   if (d) return d;
   d = [
     { id:1, nombre:'Comercial Andina Ltda.', ruc:'76.123.456-7', contacto:'Marcela Rios', email:'contacto@andina.cl', telefono:'+56 9 6123 4567', direccion:'Av. Providencia 1234, Santiago',
-      servicios:[{concepto:'SMS', precio:25}, {concepto:'SIP Trunk', precio:15000}] },
+      servicios:[{concepto:'SMS', precio:25, moneda:'CLP'}, {concepto:'SIP Trunk', precio:0.5, moneda:'UF'}],
+      contactos:[{nombre:'Felipe Diaz', tipo:'Administrativo', email:'felipe.diaz@andina.cl', telefono:'+56 9 1122 3344'}, {nombre:'Nicolas Vega', tipo:'Tecnico', email:'nicolas.vega@andina.cl', telefono:'+56 9 5566 7788'}] },
     { id:2, nombre:'Tecnored SPA', ruc:'77.888.999-2', contacto:'Ricardo Paredes', email:'ventas@tecnored.cl', telefono:'+56 9 5544 3322', direccion:'Calle Los Alerces 456, Concepcion',
-      servicios:[{concepto:'Minutos', precio:18}, {concepto:'DID', precio:6000}, {concepto:'Numeracion 600', precio:8000}] },
+      servicios:[{concepto:'Minutos', precio:18, moneda:'CLP'}, {concepto:'DID', precio:6000, moneda:'CLP'}, {concepto:'Numeracion 600', precio:8000, moneda:'CLP'}],
+      contactos:[{nombre:'Paula Lagos', tipo:'Administrativo', email:'paula.lagos@tecnored.cl', telefono:'+56 9 2233 4455'}] },
     { id:3, nombre:'Distribuidora Maipo', ruc:'78.222.333-4', contacto:'Camila Soto', email:'camila@distmaipo.cl', telefono:'+56 9 8877 1122', direccion:'Ruta 5 Sur km 12, Rancagua',
-      servicios:[{concepto:'SMS', precio:22}] },
+      servicios:[{concepto:'SMS', precio:22, moneda:'CLP'}], contactos:[] },
     { id:4, nombre:'Constructora Pacifico', ruc:'79.111.222-9', contacto:'Jorge Villalobos', email:'jvillalobos@pacifico.cl', telefono:'+56 9 3344 5566', direccion:'Av. Kennedy 789, Santiago',
-      servicios:[] }
+      servicios:[], contactos:[] }
   ];
   saveData(CLIENTES_KEY, d);
   return d;
@@ -1295,7 +1326,7 @@ function getPrefacturas() {
   if (d) return d;
   d = [
     { id:1, numero:'PRE-0001', clienteId:2, fecha: offsetDateISO(0, 4),
-      items:[{concepto:'Minutos', cantidad:1200, precioUnitario:18, subtotal:21600}, {concepto:'DID', cantidad:3, precioUnitario:6000, subtotal:18000}],
+      items:[{concepto:'Minutos', cantidad:1200, precioUnitario:18, moneda:'CLP', subtotal:21600}, {concepto:'DID', cantidad:3, precioUnitario:6000, moneda:'CLP', subtotal:18000}],
       total:39600, estado:'Borrador' }
   ];
   saveData(PREFACTURAS_KEY, d);
@@ -1510,13 +1541,14 @@ function renderClientes() {
       <td class="px-4 py-2">${c.contacto}</td>
       <td class="px-4 py-2">${c.email}</td>
       <td class="px-4 py-2">${c.telefono}</td>
-      <td class="px-4 py-2">${(c.servicios || []).map(s => `<span class="badge badge-blue mr-1">${s.concepto}</span>`).join('') || '<span style="color:var(--muted);font-size:12px">Sin servicios</span>'}</td>
+      <td class="px-4 py-2">${(c.servicios || []).map(s => `<span class="badge badge-blue mr-1">${s.concepto}: ${fmtServicioPrecio(s)}</span>`).join('') || '<span style="color:var(--muted);font-size:12px">Sin servicios</span>'}</td>
+      <td class="px-4 py-2">${(c.contactos || []).length ? `<span class="badge badge-gray">${c.contactos.length} contacto(s)</span>` : '<span style="color:var(--muted);font-size:12px">-</span>'}</td>
       <td class="px-4 py-2 text-center">
         <button class="icon-btn" onclick="editarCliente(${c.id})"><i class="fas fa-pen"></i></button>
         <button class="icon-btn danger" onclick="eliminarCliente(${c.id})"><i class="fas fa-trash"></i></button>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="7" class="px-4 py-6 text-center" style="color:var(--muted)">Sin clientes registrados.</td></tr>';
+  `).join('') || '<tr><td colspan="8" class="px-4 py-6 text-center" style="color:var(--muted)">Sin clientes registrados.</td></tr>';
 }
 
 function fillClienteSelects() {
@@ -1532,34 +1564,82 @@ function renderClienteServiciosForm(servicios) {
     const existing = servicios.find(s => s.concepto === def.concepto);
     const checked = !!existing;
     const precio = existing ? existing.precio : def.precioSugerido;
+    const moneda = existing ? existing.moneda : 'CLP';
     return `
     <div class="flex items-center gap-2 cliente-serv-row">
       <input type="checkbox" class="cliente-serv-check" data-concepto="${def.concepto}" ${checked ? 'checked' : ''} onchange="toggleClienteServicioPrecio(this)">
       <span style="flex:1;font-size:13px">${def.concepto} <span style="color:var(--muted);font-size:11px">(${def.unidad})</span></span>
-      <input type="number" min="0" class="form-input cliente-serv-precio" value="${precio}" style="width:130px" ${checked ? '' : 'disabled'}>
+      <select class="form-select cliente-serv-moneda" style="width:80px" ${checked ? '' : 'disabled'}>
+        <option value="CLP" ${moneda === 'CLP' ? 'selected' : ''}>CLP</option>
+        <option value="UF" ${moneda === 'UF' ? 'selected' : ''}>UF</option>
+      </select>
+      <input type="number" min="0" step="0.01" class="form-input cliente-serv-precio" value="${precio}" style="width:110px" ${checked ? '' : 'disabled'}>
     </div>`;
   }).join('');
 }
 
 function toggleClienteServicioPrecio(chk) {
   const row = chk.closest('.cliente-serv-row');
-  const input = row.querySelector('.cliente-serv-precio');
-  input.disabled = !chk.checked;
+  row.querySelector('.cliente-serv-precio').disabled = !chk.checked;
+  row.querySelector('.cliente-serv-moneda').disabled = !chk.checked;
 }
 
 function getClienteServiciosFromForm() {
   const servicios = [];
   document.querySelectorAll('#cliente-servicios .cliente-serv-row').forEach(row => {
     const chk = row.querySelector('.cliente-serv-check');
-    if (chk.checked) servicios.push({ concepto: chk.dataset.concepto, precio: Number(row.querySelector('.cliente-serv-precio').value) || 0 });
+    if (chk.checked) servicios.push({
+      concepto: chk.dataset.concepto,
+      precio: Number(row.querySelector('.cliente-serv-precio').value) || 0,
+      moneda: row.querySelector('.cliente-serv-moneda').value
+    });
   });
   return servicios;
+}
+
+function addContactoRow(c) {
+  c = c || {};
+  const cont = document.getElementById('cliente-contactos');
+  const row = document.createElement('div');
+  row.className = 'contacto-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:7px;padding:8px';
+  row.innerHTML = `
+    <input type="text" class="form-input contacto-nombre" placeholder="Nombre" style="flex:1.2" value="${c.nombre || ''}">
+    <select class="form-select contacto-tipo" style="width:130px">
+      <option value="Administrativo" ${c.tipo === 'Administrativo' ? 'selected' : ''}>Administrativo</option>
+      <option value="Tecnico" ${c.tipo === 'Tecnico' ? 'selected' : ''}>Tecnico</option>
+    </select>
+    <input type="email" class="form-input contacto-email" placeholder="Email" style="flex:1.2" value="${c.email || ''}">
+    <input type="text" class="form-input contacto-telefono" placeholder="Telefono" style="flex:1" value="${c.telefono || ''}">
+    <button type="button" class="icon-btn danger" onclick="this.closest('.contacto-row').remove()"><i class="fas fa-trash"></i></button>
+  `;
+  cont.appendChild(row);
+}
+
+function renderClienteContactosForm(contactos) {
+  document.getElementById('cliente-contactos').innerHTML = '';
+  (contactos || []).forEach(c => addContactoRow(c));
+}
+
+function getContactosFromForm() {
+  const contactos = [];
+  document.querySelectorAll('#cliente-contactos .contacto-row').forEach(row => {
+    const nombre = row.querySelector('.contacto-nombre').value.trim();
+    if (nombre) contactos.push({
+      nombre,
+      tipo: row.querySelector('.contacto-tipo').value,
+      email: row.querySelector('.contacto-email').value.trim(),
+      telefono: row.querySelector('.contacto-telefono').value.trim()
+    });
+  });
+  return contactos;
 }
 
 function openModalCliente() {
   document.getElementById('modal-cliente-title').textContent = 'Nuevo cliente';
   ['cliente-id','cliente-nombre','cliente-ruc','cliente-contacto','cliente-email','cliente-telefono','cliente-direccion'].forEach(id => document.getElementById(id).value = '');
   renderClienteServiciosForm(null);
+  renderClienteContactosForm(null);
   openModal('modal-cliente');
 }
 
@@ -1575,6 +1655,7 @@ function editarCliente(id) {
   document.getElementById('cliente-telefono').value = c.telefono;
   document.getElementById('cliente-direccion').value = c.direccion;
   renderClienteServiciosForm(c.servicios);
+  renderClienteContactosForm(c.contactos);
   openModal('modal-cliente');
 }
 
@@ -1589,7 +1670,8 @@ function guardarCliente() {
     email: document.getElementById('cliente-email').value.trim(),
     telefono: document.getElementById('cliente-telefono').value.trim(),
     direccion: document.getElementById('cliente-direccion').value.trim(),
-    servicios: getClienteServiciosFromForm()
+    servicios: getClienteServiciosFromForm(),
+    contactos: getContactosFromForm()
   };
   if (id) {
     const i = clientes.findIndex(x => x.id === Number(id));
@@ -1825,37 +1907,47 @@ function renderPrefacturaItemsForm(servicios, prefillItems) {
     const existing = prefillItems ? prefillItems.find(i => i.concepto === s.concepto) : null;
     const cant = existing ? existing.cantidad : 0;
     const precio = existing ? existing.precioUnitario : s.precio;
+    const moneda = existing ? existing.moneda : (s.moneda || 'CLP');
     return `
-    <div class="item-row" data-concepto="${s.concepto}">
-      <span style="flex:1.4;font-size:13px;font-weight:600">${s.concepto}</span>
-      <input type="number" class="form-input pf-cant" min="0" value="${cant}" style="width:90px" oninput="recalcPrefactura()">
-      <input type="number" class="form-input pf-precio" min="0" value="${precio}" style="width:110px" oninput="recalcPrefactura()">
-      <span class="pf-subtotal" style="width:110px;text-align:right;font-weight:600;color:var(--navy)">${fmtMoney(cant * precio)}</span>
+    <div class="item-row" data-concepto="${s.concepto}" data-moneda="${moneda}">
+      <span style="flex:1.4;font-size:13px;font-weight:600">${s.concepto} <span class="badge badge-gray">${moneda}</span></span>
+      <input type="number" class="form-input pf-cant" min="0" value="${cant}" style="width:80px" oninput="recalcPrefactura()">
+      <input type="number" step="0.01" class="form-input pf-precio" min="0" value="${precio}" style="width:100px" oninput="recalcPrefactura()">
+      <span class="pf-subtotal" style="width:120px;text-align:right;font-weight:600;color:var(--navy)">${fmtMoney(moneda === 'UF' ? cant * precio * getValorUF() : cant * precio)}</span>
     </div>`;
   }).join('');
   recalcPrefactura();
 }
 
 function recalcPrefactura() {
+  const valorUF = getValorUF();
   let total = 0;
+  let tieneUF = false;
   document.querySelectorAll('#prefactura-items .item-row').forEach(row => {
+    const moneda = row.dataset.moneda;
+    if (moneda === 'UF') tieneUF = true;
     const cant = parseFloat(row.querySelector('.pf-cant').value) || 0;
     const precio = parseFloat(row.querySelector('.pf-precio').value) || 0;
-    const sub = cant * precio;
-    row.querySelector('.pf-subtotal').textContent = fmtMoney(sub);
-    total += sub;
+    const subCLP = moneda === 'UF' ? cant * precio * valorUF : cant * precio;
+    row.querySelector('.pf-subtotal').textContent = fmtMoney(subCLP);
+    total += subCLP;
   });
   document.getElementById('prefactura-total').textContent = fmtMoney(total);
+  const note = document.getElementById('prefactura-uf-note');
+  if (note) note.textContent = tieneUF ? `Valor UF utilizado: ${fmtMoney(valorUF)} (editable en Admin > Configuracion)` : '';
   return total;
 }
 
 function getPrefacturaItems() {
+  const valorUF = getValorUF();
   const items = [];
   document.querySelectorAll('#prefactura-items .item-row').forEach(row => {
     const concepto = row.getAttribute('data-concepto');
+    const moneda = row.dataset.moneda;
     const cantidad = parseFloat(row.querySelector('.pf-cant').value) || 0;
     const precioUnitario = parseFloat(row.querySelector('.pf-precio').value) || 0;
-    if (cantidad > 0) items.push({ concepto, cantidad, precioUnitario, subtotal: cantidad * precioUnitario });
+    const subtotal = moneda === 'UF' ? cantidad * precioUnitario * valorUF : cantidad * precioUnitario;
+    if (cantidad > 0) items.push({ concepto, cantidad, precioUnitario, moneda, subtotal });
   });
   return items;
 }
@@ -1873,6 +1965,7 @@ function openModalPrefactura() {
   document.getElementById('prefactura-fecha').value = todayISO();
   document.getElementById('prefactura-items').innerHTML = '<div style="font-size:13px;color:var(--muted)">Selecciona un cliente para ver sus servicios contratados.</div>';
   document.getElementById('prefactura-total').textContent = '$0';
+  document.getElementById('prefactura-uf-note').textContent = '';
   openModal('modal-prefactura');
 }
 
@@ -2603,6 +2696,18 @@ function eliminarRol(id) {
   saveRoles(getRoles().filter(r => r.id !== id));
   renderRoles();
   showToast('Rol eliminado');
+}
+
+// ===================== ADMIN: CONFIGURACION =====================
+function renderConfig() {
+  document.getElementById('config-valor-uf').value = getValorUF();
+}
+
+function guardarValorUF() {
+  const v = Number(document.getElementById('config-valor-uf').value);
+  if (!v || v <= 0) { showToast('Ingresa un valor de UF valido'); return; }
+  localStorage.setItem(VALOR_UF_KEY, String(v));
+  showToast('Valor UF actualizado correctamente');
 }
 
 // ===================== INIT =====================
