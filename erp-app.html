@@ -1344,7 +1344,10 @@ const CONCEPTOS_FACTURACION = [
   { concepto:'SIP Trunk', unidad:'por trunk / mes', precioSugerido:0.5 },
   { concepto:'Numeracion 600', unidad:'por numero / mes', precioSugerido:8000 },
   { concepto:'Numeracion 809', unidad:'por numero / mes', precioSugerido:9000 },
-  { concepto:'DID', unidad:'por numero / mes', precioSugerido:6000 }
+  { concepto:'DID', unidad:'por numero / mes', precioSugerido:6000 },
+  { concepto:'ANI', unidad:'por numero / mes', precioSugerido:5000 },
+  { concepto:'IPs', unidad:'por IP / mes', precioSugerido:5000 },
+  { concepto:'Enlaces de Internet', unidad:'por enlace / mes', precioSugerido:0.8 }
 ];
 
 function getData(key) { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; }
