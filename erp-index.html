@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexur ERP — Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --navy:#001B72; --navy-2:#002B99; --orange:#FF4F00; }
+    body { font-family:'Inter','Segoe UI',sans-serif; }
+    .form-input {
+      width:100%; border:1.5px solid #DDE3F0; border-radius:8px;
+      padding:10px 14px 10px 40px; font-size:14px; outline:none;
+      transition:border .15s, box-shadow .15s; font-family:inherit;
+    }
+    .form-input:focus { border-color:var(--navy); box-shadow:0 0 0 3px rgba(0,27,114,.1); }
+    .input-wrap { position:relative; }
+    .input-wrap i { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#9BA8C0; font-size:14px; }
+    .btn-login {
+      width:100%; background:var(--navy); color:white; padding:11px;
+      border-radius:8px; font-size:14px; font-weight:700; border:none;
+      cursor:pointer; transition:all .2s; font-family:inherit;
+      box-shadow:0 4px 14px rgba(0,27,114,.3);
+    }
+    .btn-login:hover { background:var(--navy-2); box-shadow:0 6px 20px rgba(0,27,114,.4); transform:translateY(-1px); }
+  </style>
+</head>
+<body class="min-h-screen flex" style="background:linear-gradient(135deg,#001B72 0%,#002B99 55%,#0036C1 100%)">
+
+  <!-- Left panel -->
+  <div class="hidden lg:flex flex-col justify-between w-1/2 p-12 text-white">
+    <div class="flex items-center gap-3">
+      <div style="width:44px;height:44px;border-radius:12px;background:var(--orange);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(255,79,0,.4)">
+        <i class="fas fa-building-columns" style="color:white;font-size:20px"></i>
+      </div>
+      <div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:.5px">NEXUR ERP</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.55);letter-spacing:1px;text-transform:uppercase">Gestion empresarial</div>
+      </div>
+    </div>
+    <div>
+      <h1 class="text-4xl font-bold leading-tight mb-4">
+        Administra tu empresa<br/>desde un solo lugar
+      </h1>
+      <p class="text-blue-200 text-base leading-relaxed max-w-md">
+        Finanzas, RRHH y Ventas en una sola plataforma intuitiva, con perfiles de usuario y permisos por modulo.
+      </p>
+      <div class="flex gap-8 mt-10">
+        <div>
+          <div class="text-3xl font-bold" style="color:var(--orange)">3</div>
+          <div class="text-blue-200 text-sm mt-1">Modulos integrados</div>
+        </div>
+        <div>
+          <div class="text-3xl font-bold" style="color:var(--orange)">100%</div>
+          <div class="text-blue-200 text-sm mt-1">En la nube</div>
+        </div>
+        <div>
+          <div class="text-3xl font-bold" style="color:var(--orange)">24/7</div>
+          <div class="text-blue-200 text-sm mt-1">Acceso disponible</div>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 text-blue-300 text-sm">
+      <i class="fas fa-shield-alt" style="color:var(--orange)"></i>
+      Conexion segura TLS 1.3 · Datos cifrados en reposo
+    </div>
+  </div>
+
+  <!-- Right panel (login form) -->
+  <div class="flex-1 flex items-center justify-center p-6">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
+      <!-- Logo mobile -->
+      <div class="flex items-center gap-3 mb-8 lg:hidden">
+        <div style="width:40px;height:40px;border-radius:10px;background:var(--orange);display:flex;align-items:center;justify-content:center">
+          <i class="fas fa-building-columns" style="color:white;font-size:18px"></i>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:var(--navy)">NEXUR ERP</div>
+      </div>
+
+      <h2 class="text-2xl font-bold mb-1" style="color:var(--navy)">Bienvenido</h2>
+      <p class="text-sm text-gray-400 mb-7">Ingresa tus credenciales para continuar</p>
+
+      <form onsubmit="login(event)">
+        <div class="mb-4">
+          <label class="block text-xs mb-1.5" style="color:#6B7A99; font-weight:600; text-transform:uppercase; letter-spacing:.5px">Usuario</label>
+          <div class="input-wrap">
+            <i class="fas fa-user"></i>
+            <input type="text" id="inp-user" class="form-input" placeholder="Ingresa tu usuario" autocomplete="username" />
+          </div>
+        </div>
+        <div class="mb-2">
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="text-xs" style="color:#6B7A99; font-weight:600; text-transform:uppercase; letter-spacing:.5px">Contraseña</label>
+          </div>
+          <div class="input-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="inp-pass" class="form-input" placeholder="••••••••" autocomplete="current-password" />
+          </div>
+        </div>
+
+        <!-- Error message -->
+        <div id="login-error" class="hidden mb-4 mt-3 flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <i class="fas fa-exclamation-circle flex-shrink-0"></i>
+          <span>Usuario o contraseña incorrectos.</span>
+        </div>
+
+        <button type="submit" class="btn-login mt-4">
+          Iniciar sesión &nbsp;<i class="fas fa-arrow-right"></i>
+        </button>
+      </form>
+
+      <div class="flex items-center gap-3 my-6">
+        <div class="flex-1 h-px bg-gray-100"></div>
+        <span class="text-xs text-gray-300">o</span>
+        <div class="flex-1 h-px bg-gray-100"></div>
+      </div>
+
+      <div class="flex gap-3 text-center text-xs text-gray-400">
+        <div class="flex-1 border border-gray-100 rounded-lg p-3">
+          <i class="fas fa-users-gear block mb-1" style="color:var(--navy)"></i>
+          Perfiles y permisos
+        </div>
+        <div class="flex-1 border border-gray-100 rounded-lg p-3">
+          <i class="fas fa-shield-alt block mb-1" style="color:var(--navy)"></i>
+          SSL Seguro
+        </div>
+        <div class="flex-1 border border-gray-100 rounded-lg p-3">
+          <i class="fas fa-chart-line block mb-1" style="color:var(--navy)"></i>
+          Reportes
+        </div>
+      </div>
+
+      <a href="#" onclick="openRecuperar()" class="block text-center text-xs mt-5 font-medium" style="color:var(--orange)">
+        ¿Olvidaste tu contraseña? Recuperar acceso
+      </a>
+
+      <p class="text-center text-xs text-gray-300 mt-4">
+        © 2026 Nexur ERP · Todos los derechos reservados
+      </p>
+    </div>
+  </div>
+
+  <!-- Modal recuperar contraseña -->
+  <div id="modal-recuperar" style="display:none;position:fixed;inset:0;background:rgba(0,15,60,.5);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(3px)">
+    <div style="background:white;border-radius:16px;padding:32px;width:400px;max-width:95vw;box-shadow:0 20px 60px rgba(0,27,114,.3)">
+
+      <!-- Paso 1: ingresar usuario -->
+      <div id="paso1">
+        <div class="flex justify-between items-center mb-2">
+          <h3 style="font-size:16px;font-weight:700;color:var(--navy)"><i class="fas fa-lock-open mr-2" style="color:var(--orange)"></i>Recuperar contraseña</h3>
+          <button onclick="closeRecuperar()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:18px"><i class="fas fa-times"></i></button>
+        </div>
+        <p style="font-size:13px;color:#6B7A99;margin-bottom:20px">Ingresa tu nombre de usuario para continuar.</p>
+        <div style="margin-bottom:16px">
+          <label style="font-size:11px;font-weight:700;color:#6B7A99;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Usuario</label>
+          <input type="text" id="rec-username" class="form-input" placeholder="Tu nombre de usuario" />
+        </div>
+        <div id="rec-error-1" style="display:none;background:#FEF2F2;color:#991B1B;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px">
+          <i class="fas fa-exclamation-circle mr-2"></i><span id="rec-error-1-msg"></span>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button onclick="closeRecuperar()" style="background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Cancelar</button>
+          <button onclick="irPaso2()" style="background:var(--navy);color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Continuar <i class="fas fa-arrow-right ml-1"></i></button>
+        </div>
+      </div>
+
+      <!-- Paso 2: nueva contraseña -->
+      <div id="paso2" style="display:none">
+        <div class="flex justify-between items-center mb-2">
+          <h3 style="font-size:16px;font-weight:700;color:var(--navy)"><i class="fas fa-key mr-2" style="color:var(--orange)"></i>Nueva contraseña</h3>
+          <button onclick="closeRecuperar()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:18px"><i class="fas fa-times"></i></button>
+        </div>
+        <p style="font-size:13px;color:#6B7A99;margin-bottom:20px">Usuario: <strong id="rec-user-label" style="color:var(--navy)"></strong></p>
+        <div style="margin-bottom:14px">
+          <label style="font-size:11px;font-weight:700;color:#6B7A99;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Nueva contraseña</label>
+          <div style="position:relative">
+            <input type="password" id="rec-pass1" class="form-input" placeholder="Mínimo 6 caracteres" style="padding-right:40px" />
+            <button type="button" onclick="toggleRecVer('rec-pass1')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9ca3af"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div style="margin-bottom:6px">
+          <label style="font-size:11px;font-weight:700;color:#6B7A99;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Confirmar contraseña</label>
+          <div style="position:relative">
+            <input type="password" id="rec-pass2" class="form-input" placeholder="Repite la contraseña" style="padding-right:40px" />
+            <button type="button" onclick="toggleRecVer('rec-pass2')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9ca3af"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div id="rec-error-2" style="display:none;background:#FEF2F2;color:#991B1B;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;font-size:13px;margin:12px 0">
+          <i class="fas fa-exclamation-circle mr-2"></i><span id="rec-error-2-msg"></span>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+          <button onclick="volverPaso1()" style="background:white;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-arrow-left mr-1"></i> Volver</button>
+          <button onclick="guardarRecuperacion()" style="background:var(--orange);color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-save mr-1"></i> Guardar contraseña</button>
+        </div>
+      </div>
+
+      <!-- Paso 3: éxito -->
+      <div id="paso3" style="display:none;text-align:center;padding:10px 0">
+        <div style="width:64px;height:64px;border-radius:50%;background:#D1FAE5;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+          <i class="fas fa-check" style="color:#059669;font-size:28px"></i>
+        </div>
+        <h3 style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px">¡Contraseña actualizada!</h3>
+        <p style="font-size:13px;color:#6B7A99;margin-bottom:24px">Ya puedes iniciar sesión con tu nueva contraseña.</p>
+        <button onclick="closeRecuperar()" style="background:var(--navy);color:white;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:600;cursor:pointer">Ir al login</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const USERS_KEY = 'nexur_erp_users';
+    const SESSION_KEY = 'nexur_erp_session';
+    const ROLES_KEY = 'nexur_erp_roles';
+
+    function getRoles() {
+      const raw = localStorage.getItem(ROLES_KEY);
+      if (raw) return JSON.parse(raw);
+      const defaults = [
+        { id:1, nombre:'Super Admin', modulos:['dashboard','finanzas','rrhh','ventas','admin'] },
+        { id:2, nombre:'Finanzas',    modulos:['dashboard','finanzas'] },
+        { id:3, nombre:'RRHH',        modulos:['dashboard','rrhh'] },
+        { id:4, nombre:'Ventas',      modulos:['dashboard','ventas'] },
+        { id:5, nombre:'Solo Lectura',modulos:['dashboard'] }
+      ];
+      localStorage.setItem(ROLES_KEY, JSON.stringify(defaults));
+      return defaults;
+    }
+
+    function getUsers() {
+      getRoles();
+      const raw = localStorage.getItem(USERS_KEY);
+      if (raw) return JSON.parse(raw);
+      const defaults = [
+        { id:1, username:'admin',    password:'admin123', roleId:1, nombre:'Administrador General', email:'admin@nexurerp.com',    active:true },
+        { id:2, username:'finanzas', password:'fin2024',  roleId:2, nombre:'Ana Torres',             email:'finanzas@nexurerp.com', active:true },
+        { id:3, username:'rrhh',     password:'rrhh2024', roleId:3, nombre:'Carlos Mena',             email:'rrhh@nexurerp.com',     active:true },
+        { id:4, username:'ventas',   password:'ven2024',  roleId:4, nombre:'Lucia Fernandez',         email:'ventas@nexurerp.com',   active:true }
+      ];
+      localStorage.setItem(USERS_KEY, JSON.stringify(defaults));
+      return defaults;
+    }
+
+    function saveUsers(users) { localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
+
+    // Si ya hay sesión activa, ir directo al app
+    if (localStorage.getItem(SESSION_KEY)) {
+      window.location.href = 'erp-app.html';
+    }
+
+    // ===== RECUPERACIÓN =====
+    let recUserId = null;
+
+    function openRecuperar() {
+      recUserId = null;
+      document.getElementById('rec-username').value = '';
+      document.getElementById('rec-pass1').value = '';
+      document.getElementById('rec-pass2').value = '';
+      document.getElementById('rec-error-1').style.display = 'none';
+      document.getElementById('rec-error-2').style.display = 'none';
+      document.getElementById('paso1').style.display = 'block';
+      document.getElementById('paso2').style.display = 'none';
+      document.getElementById('paso3').style.display = 'none';
+      document.getElementById('modal-recuperar').style.display = 'flex';
+    }
+
+    function closeRecuperar() {
+      document.getElementById('modal-recuperar').style.display = 'none';
+    }
+
+    function irPaso2() {
+      const username = document.getElementById('rec-username').value.trim();
+      const err1     = document.getElementById('rec-error-1');
+      const err1msg  = document.getElementById('rec-error-1-msg');
+      err1.style.display = 'none';
+
+      if (!username) { err1msg.textContent = 'Ingresa tu nombre de usuario.'; err1.style.display = 'block'; return; }
+
+      const users = getUsers();
+      const u = users.find(x => x.username === username);
+      if (!u) { err1msg.textContent = 'No existe un usuario con ese nombre.'; err1.style.display = 'block'; return; }
+      if (!u.active) { err1msg.textContent = 'Esta cuenta está desactivada. Contacta al administrador.'; err1.style.display = 'block'; return; }
+
+      recUserId = u.id;
+      document.getElementById('rec-user-label').textContent = u.username;
+      document.getElementById('paso1').style.display = 'none';
+      document.getElementById('paso2').style.display = 'block';
+    }
+
+    function volverPaso1() {
+      document.getElementById('paso2').style.display = 'none';
+      document.getElementById('paso1').style.display = 'block';
+    }
+
+    function toggleRecVer(id) {
+      const el = document.getElementById(id);
+      if (el) el.type = el.type === 'password' ? 'text' : 'password';
+    }
+
+    function guardarRecuperacion() {
+      const pass1  = document.getElementById('rec-pass1').value;
+      const pass2  = document.getElementById('rec-pass2').value;
+      const err2   = document.getElementById('rec-error-2');
+      const err2msg= document.getElementById('rec-error-2-msg');
+      err2.style.display = 'none';
+
+      if (pass1.length < 6) { err2msg.textContent = 'La contraseña debe tener al menos 6 caracteres.'; err2.style.display = 'block'; return; }
+      if (pass1 !== pass2)  { err2msg.textContent = 'Las contraseñas no coinciden.'; err2.style.display = 'block'; return; }
+
+      const users = getUsers();
+      const u = users.find(x => x.id === recUserId);
+      if (!u) return;
+      u.password = pass1;
+      saveUsers(users);
+
+      document.getElementById('paso2').style.display = 'none';
+      document.getElementById('paso3').style.display = 'block';
+    }
+
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('modal-recuperar').addEventListener('click', function(e) {
+      if (e.target === this) closeRecuperar();
+    });
+
+    // ===== LOGIN =====
+    function login(e) {
+      e.preventDefault();
+      const username = document.getElementById('inp-user').value.trim();
+      const password = document.getElementById('inp-pass').value;
+      const errEl    = document.getElementById('login-error');
+
+      const users = getUsers();
+      const user  = users.find(u => u.username === username && u.password === password && u.active);
+
+      if (!user) {
+        errEl.classList.remove('hidden');
+        document.getElementById('inp-pass').value = '';
+        return;
+      }
+
+      errEl.classList.add('hidden');
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ id:user.id, username:user.username, nombre:user.nombre, roleId:user.roleId, email:user.email }));
+      window.location.href = 'erp-app.html';
+    }
+  </script>
+</body>
+</html>
