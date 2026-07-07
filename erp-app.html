@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -245,12 +246,26 @@
       <div class="icon-circle"><i class="fas fa-cart-shopping"></i></div>
       Ventas
     </div>
+    <div class="nav-tab" onclick="switchTab('facturacion')" id="tab-facturacion">
+      <div class="icon-circle"><i class="fas fa-file-invoice-dollar"></i></div>
+      Facturacion
+    </div>
     <div class="nav-tab" onclick="switchTab('admin')" id="tab-admin">
       <div class="icon-circle"><i class="fas fa-sliders-h"></i></div>
       Admin
     </div>
   </div>
   <div class="ml-auto flex items-center gap-3">
+    <div style="position:relative">
+      <button onclick="toggleNotificaciones()" class="flex items-center justify-center" style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.1);border:none;cursor:pointer;position:relative">
+        <i class="fas fa-bell" style="color:rgba(255,255,255,.8);font-size:15px"></i>
+        <span id="notif-badge" class="hidden" style="position:absolute;top:-4px;right:-4px;background:var(--orange);color:white;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px">0</span>
+      </button>
+      <div id="notif-panel" class="hidden" style="position:absolute;top:44px;right:0;width:320px;background:white;border-radius:10px;box-shadow:0 12px 32px rgba(0,27,114,.25);z-index:200;max-height:400px;overflow-y:auto">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);font-weight:700;color:var(--navy);font-size:13px">Facturas por cobrar</div>
+        <div id="notif-list"></div>
+      </div>
+    </div>
     <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg" style="background:rgba(255,255,255,.1)">
       <div id="nav-avatar" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style="background:var(--orange)">A</div>
       <div class="leading-tight">
@@ -303,8 +318,13 @@
     <div class="sidebar-label">Ventas</div>
     <div class="sidebar-item active" onclick="showPage('ventas-cotizaciones')"><i class="fas fa-file-signature"></i> Cotizaciones</div>
     <div class="sidebar-item" onclick="showPage('ventas-pedidos')"><i class="fas fa-dolly"></i> Pedidos</div>
-    <div class="sidebar-item" onclick="showPage('ventas-facturas')"><i class="fas fa-file-invoice"></i> Facturacion</div>
-    <div class="sidebar-item" onclick="showPage('ventas-prefacturas')"><i class="fas fa-file-circle-plus"></i> Prefacturas</div>
+  </div>
+
+  <!-- ===== FACTURACION SIDEBAR ===== -->
+  <div class="sidebar hidden" id="sidebar-facturacion">
+    <div class="sidebar-label">Facturacion</div>
+    <div class="sidebar-item active" onclick="showPage('facturacion-prefacturas')"><i class="fas fa-file-circle-plus"></i> Prefacturas</div>
+    <div class="sidebar-item" onclick="showPage('facturacion-facturas')"><i class="fas fa-file-invoice"></i> Facturas</div>
   </div>
 
   <!-- ===== ADMIN SIDEBAR ===== -->
@@ -665,24 +685,8 @@
       </div>
     </div>
 
-    <div class="page" id="page-ventas-facturas">
-      <div class="page-title"><div class="title-left">Facturacion de venta</div></div>
-      <div class="p-6">
-        <div class="card p-0 overflow-hidden">
-          <table class="w-full text-sm">
-            <thead class="table-header"><tr>
-              <th class="text-left px-4 py-2">N. Factura</th><th class="text-left px-4 py-2">Cliente</th>
-              <th class="text-left px-4 py-2">Origen</th><th class="text-left px-4 py-2">Emision</th>
-              <th class="text-left px-4 py-2">Vencimiento</th><th class="text-right px-4 py-2">Monto</th>
-              <th class="text-left px-4 py-2">Estado</th><th class="text-center px-4 py-2">Accion</th>
-            </tr></thead>
-            <tbody id="tbody-facturas-ventas"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="page" id="page-ventas-prefacturas">
+    <!-- ============ FACTURACION ============ -->
+    <div class="page" id="page-facturacion-prefacturas">
       <div class="page-title">
         <div class="title-left">Prefacturas</div>
         <button class="btn-orange" onclick="openModalPrefactura()"><i class="fas fa-plus"></i> Nueva prefactura</button>
@@ -696,6 +700,27 @@
               <th class="text-left px-4 py-2">Estado</th><th class="text-center px-4 py-2">Acciones</th>
             </tr></thead>
             <tbody id="tbody-prefacturas"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-facturacion-facturas">
+      <div class="page-title">
+        <div class="title-left">Facturas</div>
+        <button class="btn-orange" onclick="openModalFactura()"><i class="fas fa-plus"></i> Nueva factura</button>
+      </div>
+      <div class="p-6">
+        <div class="card p-0 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="table-header"><tr>
+              <th class="text-left px-4 py-2">N. Factura</th><th class="text-left px-4 py-2">Cliente</th>
+              <th class="text-left px-4 py-2">Origen</th><th class="text-left px-4 py-2">Emision</th>
+              <th class="text-left px-4 py-2">Vencimiento</th><th class="text-left px-4 py-2">Fecha de cobro</th>
+              <th class="text-right px-4 py-2">Monto</th>
+              <th class="text-left px-4 py-2">Estado</th><th class="text-center px-4 py-2">Accion</th>
+            </tr></thead>
+            <tbody id="tbody-facturas-ventas"></tbody>
           </table>
         </div>
       </div>
@@ -870,7 +895,14 @@
       <div><label class="form-label">Cliente</label><select class="form-select" id="prefactura-cliente" onchange="onPrefacturaClienteChange()"></select></div>
       <div><label class="form-label">Fecha</label><input type="date" class="form-input" id="prefactura-fecha" /></div>
     </div>
-    <label class="form-label">Servicios contratados por el cliente</label>
+    <div class="flex justify-between items-center mb-2">
+      <label class="form-label" style="margin-bottom:0">Servicios contratados por el cliente</label>
+      <div>
+        <input type="file" id="prefactura-file" class="hidden" accept=".xlsx,.xls,.csv" onchange="procesarArchivoPrefactura(this.files[0])" />
+        <button type="button" class="btn-secondary btn-sm" id="btn-prefactura-file" onclick="document.getElementById('prefactura-file').click()" disabled title="Selecciona un cliente primero"><i class="fas fa-file-arrow-up"></i> Subir archivo de detalle</button>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">El archivo debe tener una columna con el nombre del servicio por fila (ej: SMS, Minutos, DID...). El sistema cuenta cuantas filas hay de cada uno y completa las cantidades.</p>
     <div id="prefactura-items" class="mb-2"></div>
     <div class="flex justify-between items-center mb-4">
       <span id="prefactura-uf-note" style="font-size:11px;color:var(--muted)"></span>
@@ -879,6 +911,33 @@
     <div class="flex justify-end gap-2">
       <button class="btn-secondary" onclick="closeModal('modal-prefactura')">Cancelar</button>
       <button class="btn-primary" onclick="guardarPrefactura()"><i class="fas fa-save"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: FACTURA ===== -->
+<div class="modal" id="modal-factura">
+  <div class="modal-box">
+    <div class="modal-header" id="modal-factura-title">Nueva factura</div>
+    <hr class="modal-divider" />
+    <input type="hidden" id="factura-id" />
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div><label class="form-label">Cliente</label><select class="form-select" id="factura-cliente"></select></div>
+      <div><label class="form-label">N. de factura</label><input class="form-input" id="factura-numero" placeholder="FAC-0000" /></div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div><label class="form-label">Fecha de factura</label><input type="date" class="form-input" id="factura-fecha" /></div>
+      <div><label class="form-label">Monto</label><input type="number" min="0" class="form-input" id="factura-monto" /></div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div><label class="form-label">Estado</label>
+        <select class="form-select" id="factura-estado"><option>Pendiente</option><option>Pagada</option><option>Vencida</option></select>
+      </div>
+      <div><label class="form-label">Fecha de cobro</label><input type="date" class="form-input" id="factura-fecha-cobro" /></div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn-secondary" onclick="closeModal('modal-factura')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarFactura()"><i class="fas fa-save"></i> Guardar</button>
     </div>
   </div>
 </div>
@@ -1090,6 +1149,7 @@
       <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="rol-mod-finanzas" /> Finanzas</label>
       <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="rol-mod-rrhh" /> RRHH</label>
       <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="rol-mod-ventas" /> Ventas</label>
+      <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="rol-mod-facturacion" /> Facturacion</label>
       <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="rol-mod-admin" /> Administracion</label>
     </div>
     <div class="flex justify-end gap-2">
@@ -1119,10 +1179,10 @@ function getRoles() {
   const raw = localStorage.getItem(ROLES_KEY);
   if (raw) return JSON.parse(raw);
   const defaults = [
-    { id:1, nombre:'Super Admin', modulos:['dashboard','clientes','finanzas','rrhh','ventas','admin'] },
-    { id:2, nombre:'Finanzas',    modulos:['dashboard','clientes','finanzas'] },
+    { id:1, nombre:'Super Admin', modulos:['dashboard','clientes','finanzas','rrhh','ventas','facturacion','admin'] },
+    { id:2, nombre:'Finanzas',    modulos:['dashboard','clientes','finanzas','facturacion'] },
     { id:3, nombre:'RRHH',        modulos:['dashboard','rrhh'] },
-    { id:4, nombre:'Ventas',      modulos:['dashboard','clientes','ventas'] },
+    { id:4, nombre:'Ventas',      modulos:['dashboard','clientes','ventas','facturacion'] },
     { id:5, nombre:'Solo Lectura',modulos:['dashboard'] }
   ];
   localStorage.setItem(ROLES_KEY, JSON.stringify(defaults));
@@ -1149,7 +1209,7 @@ function aplicarPermisosPorRol(roleId) {
   const roles = getRoles();
   const rol = roles.find(r => r.id === roleId) || roles[roles.length - 1];
   const modulos = rol.modulos || ['dashboard'];
-  const todos = ['dashboard','clientes','finanzas','rrhh','ventas','admin'];
+  const todos = ['dashboard','clientes','finanzas','rrhh','ventas','facturacion','admin'];
   todos.forEach(m => {
     const visible = modulos.includes(m);
     const tab = document.getElementById('tab-' + m);
@@ -1204,7 +1264,52 @@ function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.addEventListener('click', e => {
   if (e.target.classList && e.target.classList.contains('modal')) e.target.classList.remove('open');
+  const panel = document.getElementById('notif-panel');
+  if (panel && !panel.classList.contains('hidden') && !panel.contains(e.target) && !e.target.closest('button[onclick="toggleNotificaciones()"]')) {
+    panel.classList.add('hidden');
+  }
 });
+
+// ===================== NOTIFICACIONES =====================
+function getFacturasPorCobrar() {
+  const hoy = todayISO();
+  const limite = addDaysISO(hoy, 3);
+  return getFacturasVenta().filter(f => f.estado !== 'Pagada' && f.fechaCobro && f.fechaCobro <= limite);
+}
+
+function actualizarNotificaciones() {
+  const pendientes = getFacturasPorCobrar();
+  const badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  if (pendientes.length > 0) {
+    badge.textContent = pendientes.length;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+  const hoy = todayISO();
+  document.getElementById('notif-list').innerHTML = pendientes.length ? pendientes.map(f => {
+    const vencida = f.fechaCobro < hoy;
+    return `
+    <div onclick="irAFacturacion()" style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background='var(--light)'" onmouseout="this.style.background='white'">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;font-weight:600">${f.numero}</span>
+        <span class="badge ${vencida ? 'badge-red' : 'badge-yellow'}">${vencida ? 'Vencida' : 'Por cobrar'}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">${clienteNombre(f.clienteId)} · ${fmtMoney(f.total)} · ${fmtDate(f.fechaCobro)}</div>
+    </div>
+  `; }).join('') : '<div style="padding:16px;text-align:center;font-size:13px;color:var(--muted)">No hay facturas por cobrar proximamente.</div>';
+}
+
+function toggleNotificaciones() {
+  document.getElementById('notif-panel').classList.toggle('hidden');
+}
+
+function irAFacturacion() {
+  document.getElementById('notif-panel').classList.add('hidden');
+  switchTab('facturacion');
+  showPage('facturacion-facturas');
+}
 
 function descargarCSV(nombre, contenido) {
   const blob = new Blob(['﻿' + contenido], { type: 'text/csv;charset=utf-8;' });
@@ -1238,7 +1343,7 @@ function switchTab(tab) {
   document.querySelectorAll('.sidebar').forEach(s => s.classList.add('hidden'));
   const sbEl = document.getElementById('sidebar-' + tab);
   if (sbEl) sbEl.classList.remove('hidden');
-  const defaults = { dashboard:'dashboard', clientes:'clientes', finanzas:'fin-resumen', rrhh:'rrhh-empleados', ventas:'ventas-cotizaciones', admin:'admin-usuarios' };
+  const defaults = { dashboard:'dashboard', clientes:'clientes', finanzas:'fin-resumen', rrhh:'rrhh-empleados', ventas:'ventas-cotizaciones', facturacion:'facturacion-prefacturas', admin:'admin-usuarios' };
   showPage(defaults[tab]);
 }
 
@@ -1271,8 +1376,8 @@ function renderPage(pageId) {
     'rrhh-vacaciones': renderVacaciones,
     'ventas-cotizaciones': renderCotizaciones,
     'ventas-pedidos': renderPedidos,
-    'ventas-facturas': renderFacturasVentas,
-    'ventas-prefacturas': renderPrefacturas,
+    'facturacion-facturas': renderFacturasVentas,
+    'facturacion-prefacturas': renderPrefacturas,
     'admin-usuarios': renderUsuarios,
     'admin-roles': renderRoles,
     'admin-config': renderConfig
@@ -1414,10 +1519,12 @@ function getFacturasVenta() {
   let d = getData(FACTURAS_VENTA_KEY);
   if (d) return d;
   const f1 = offsetDateISO(1, 9);
+  const f2 = offsetDateISO(2, 15);
+  const f3 = offsetDateISO(0, 2);
   d = [
-    { id:1, numero:'FAC-0001', pedidoId:1, clienteId:1, fecha:f1, fechaVencimiento: addDaysISO(f1, 30), total:850000, estado:'Pagada' },
-    { id:2, numero:'FAC-0002', pedidoId:null, clienteId:3, fecha: offsetDateISO(2, 15), fechaVencimiento: addDaysISO(offsetDateISO(2, 15), 30), total:410000, estado:'Vencida' },
-    { id:3, numero:'FAC-0003', pedidoId:null, clienteId:2, fecha: offsetDateISO(0, 2), fechaVencimiento: addDaysISO(offsetDateISO(0, 2), 30), total:620000, estado:'Pendiente' }
+    { id:1, numero:'FAC-0001', pedidoId:1, prefacturaId:null, clienteId:1, fecha:f1, fechaVencimiento: addDaysISO(f1, 30), fechaCobro: addDaysISO(f1, 30), total:850000, estado:'Pagada' },
+    { id:2, numero:'FAC-0002', pedidoId:null, prefacturaId:null, clienteId:3, fecha: f2, fechaVencimiento: addDaysISO(f2, 30), fechaCobro: addDaysISO(f2, 30), total:410000, estado:'Vencida' },
+    { id:3, numero:'FAC-0003', pedidoId:null, prefacturaId:null, clienteId:2, fecha: f3, fechaVencimiento: addDaysISO(f3, 30), fechaCobro: addDaysISO(todayISO(), 2), total:620000, estado:'Pendiente' }
   ];
   saveData(FACTURAS_VENTA_KEY, d);
   return d;
@@ -1691,7 +1798,7 @@ function editarClienteDesdeDetalle() {
 function fillClienteSelects() {
   const clientes = getClientes();
   const opts = clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
-  ['cotizacion-cliente','pedido-cliente','prefactura-cliente'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = opts; });
+  ['cotizacion-cliente','pedido-cliente','prefactura-cliente','factura-cliente'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = opts; });
 }
 
 function renderClienteServiciosForm(servicios) {
@@ -1970,9 +2077,10 @@ function facturarPedido(pedidoId) {
   const facturas = getFacturasVenta();
   const numero = 'FAC-' + String(uid(facturas)).padStart(4,'0');
   const fecha = todayISO();
-  facturas.push({ id: uid(facturas), numero, pedidoId: p.id, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), total: p.total, estado:'Pendiente' });
+  facturas.push({ id: uid(facturas), numero, pedidoId: p.id, prefacturaId: null, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado:'Pendiente' });
   saveData(FACTURAS_VENTA_KEY, facturas);
   renderPedidos();
+  actualizarNotificaciones();
   showToast(`Factura ${numero} generada para ${p.numero}`);
 }
 
@@ -1984,22 +2092,31 @@ function eliminarPedido(id) {
 }
 
 // ===================== VENTAS: FACTURAS =====================
+function facturaOrigen(f) {
+  if (f.pedidoId) return (getPedidos().find(p => p.id === f.pedidoId) || {}).numero || '-';
+  if (f.prefacturaId) return (getPrefacturas().find(p => p.id === f.prefacturaId) || {}).numero || '-';
+  return 'Manual';
+}
+
 function renderFacturasVentas() {
   const facturas = getFacturasVenta();
   document.getElementById('tbody-facturas-ventas').innerHTML = facturas.map(f => `
     <tr class="table-row" style="border-top:1px solid var(--border)">
       <td class="px-4 py-2 font-medium">${f.numero}</td>
       <td class="px-4 py-2">${clienteNombre(f.clienteId)}</td>
-      <td class="px-4 py-2">${f.pedidoId ? (getPedidos().find(p=>p.id===f.pedidoId)||{}).numero || '-' : (f.prefacturaId ? (getPrefacturas().find(p=>p.id===f.prefacturaId)||{}).numero || '-' : '-')}</td>
+      <td class="px-4 py-2">${facturaOrigen(f)}</td>
       <td class="px-4 py-2">${fmtDate(f.fecha)}</td>
       <td class="px-4 py-2">${fmtDate(f.fechaVencimiento)}</td>
+      <td class="px-4 py-2">${fmtDate(f.fechaCobro)}</td>
       <td class="px-4 py-2 text-right">${fmtMoney(f.total)}</td>
       <td class="px-4 py-2"><span class="badge ${badgeClass(estadoFacturaCalc(f))}">${estadoFacturaCalc(f)}</span></td>
       <td class="px-4 py-2 text-center">
         ${f.estado !== 'Pagada' ? `<button class="icon-btn success" title="Marcar pagada" onclick="marcarFacturaPagada(${f.id})"><i class="fas fa-check"></i></button>` : ''}
+        <button class="icon-btn" title="Editar" onclick="editarFactura(${f.id})"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn danger" title="Eliminar" onclick="eliminarFactura(${f.id})"><i class="fas fa-trash"></i></button>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="8" class="px-4 py-6 text-center" style="color:var(--muted)">Sin facturas emitidas.</td></tr>';
+  `).join('') || '<tr><td colspan="9" class="px-4 py-6 text-center" style="color:var(--muted)">Sin facturas emitidas.</td></tr>';
 }
 
 function marcarFacturaPagada(id) {
@@ -2009,7 +2126,68 @@ function marcarFacturaPagada(id) {
   f.estado = 'Pagada';
   saveData(FACTURAS_VENTA_KEY, facturas);
   renderFacturasVentas(); renderFacturas(); renderFinResumen();
+  actualizarNotificaciones();
   showToast(`Factura ${f.numero} marcada como pagada`);
+}
+
+function openModalFactura() {
+  fillClienteSelects();
+  document.getElementById('modal-factura-title').textContent = 'Nueva factura';
+  document.getElementById('factura-id').value = '';
+  document.getElementById('factura-cliente').selectedIndex = -1;
+  const facturas = getFacturasVenta();
+  document.getElementById('factura-numero').value = 'FAC-' + String(uid(facturas)).padStart(4, '0');
+  document.getElementById('factura-fecha').value = todayISO();
+  document.getElementById('factura-monto').value = '';
+  document.getElementById('factura-estado').value = 'Pendiente';
+  document.getElementById('factura-fecha-cobro').value = addDaysISO(todayISO(), 30);
+  openModal('modal-factura');
+}
+
+function editarFactura(id) {
+  const f = getFacturasVenta().find(x => x.id === id);
+  if (!f) return;
+  fillClienteSelects();
+  document.getElementById('modal-factura-title').textContent = 'Editar factura';
+  document.getElementById('factura-id').value = f.id;
+  document.getElementById('factura-cliente').value = f.clienteId;
+  document.getElementById('factura-numero').value = f.numero;
+  document.getElementById('factura-fecha').value = f.fecha;
+  document.getElementById('factura-monto').value = f.total;
+  document.getElementById('factura-estado').value = f.estado;
+  document.getElementById('factura-fecha-cobro').value = f.fechaCobro || '';
+  openModal('modal-factura');
+}
+
+function guardarFactura() {
+  const clienteId = Number(document.getElementById('factura-cliente').value);
+  const numero = document.getElementById('factura-numero').value.trim();
+  const monto = Number(document.getElementById('factura-monto').value);
+  if (!clienteId || !numero || !monto) { showToast('Completa cliente, numero y monto'); return; }
+  const fecha = document.getElementById('factura-fecha').value || todayISO();
+  const fechaCobro = document.getElementById('factura-fecha-cobro').value || null;
+  const estado = document.getElementById('factura-estado').value;
+  const facturas = getFacturasVenta();
+  const id = document.getElementById('factura-id').value;
+  if (id) {
+    const i = facturas.findIndex(x => x.id === Number(id));
+    facturas[i] = { ...facturas[i], clienteId, numero, fecha, total: monto, estado, fechaCobro };
+  } else {
+    facturas.push({ id: uid(facturas), numero, pedidoId: null, prefacturaId: null, clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro, total: monto, estado });
+  }
+  saveData(FACTURAS_VENTA_KEY, facturas);
+  closeModal('modal-factura');
+  renderFacturasVentas(); renderFacturas(); renderFinResumen();
+  actualizarNotificaciones();
+  showToast('Factura guardada correctamente');
+}
+
+function eliminarFactura(id) {
+  if (!confirm('¿Eliminar esta factura?')) return;
+  saveData(FACTURAS_VENTA_KEY, getFacturasVenta().filter(f => f.id !== id));
+  renderFacturasVentas(); renderFacturas(); renderFinResumen();
+  actualizarNotificaciones();
+  showToast('Factura eliminada');
 }
 
 // ===================== VENTAS: PREFACTURAS =====================
@@ -2093,6 +2271,7 @@ function onPrefacturaClienteChange() {
   const clienteId = Number(document.getElementById('prefactura-cliente').value);
   const cliente = getClientes().find(c => c.id === clienteId);
   renderPrefacturaItemsForm(cliente ? cliente.servicios : [], null);
+  document.getElementById('btn-prefactura-file').disabled = !(cliente && cliente.servicios && cliente.servicios.length);
 }
 
 function openModalPrefactura() {
@@ -2103,6 +2282,8 @@ function openModalPrefactura() {
   document.getElementById('prefactura-items').innerHTML = '<div style="font-size:13px;color:var(--muted)">Selecciona un cliente para ver sus servicios contratados.</div>';
   document.getElementById('prefactura-total').textContent = '$0';
   document.getElementById('prefactura-uf-note').textContent = '';
+  document.getElementById('prefactura-file').value = '';
+  document.getElementById('btn-prefactura-file').disabled = true;
   openModal('modal-prefactura');
 }
 
@@ -2113,9 +2294,64 @@ function editarPrefactura(id) {
   document.getElementById('prefactura-id').value = p.id;
   document.getElementById('prefactura-cliente').value = p.clienteId;
   document.getElementById('prefactura-fecha').value = p.fecha;
+  document.getElementById('prefactura-file').value = '';
   const cliente = getClientes().find(c => c.id === p.clienteId);
   renderPrefacturaItemsForm(cliente ? cliente.servicios : [], p.items);
+  document.getElementById('btn-prefactura-file').disabled = !(cliente && cliente.servicios && cliente.servicios.length);
   openModal('modal-prefactura');
+}
+
+function procesarArchivoPrefactura(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['xlsx','xls','csv'].includes(ext)) { showToast('Formato no soportado. Usa .xlsx, .xls o .csv'); return; }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let filas = [];
+      if (ext === 'csv') {
+        const lines = String(e.target.result).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const sep = lines[0] && lines[0].includes(';') ? ';' : ',';
+        filas = lines.map(l => l.split(sep).map(v => v.replace(/["']/g, '').trim()));
+      } else {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        filas = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }).map(row => row.map(v => String(v).trim()));
+      }
+      if (!filas.length) { showToast('El archivo esta vacio'); return; }
+
+      // Detectar columna que contiene el nombre del concepto/servicio
+      const conceptosActivos = Array.from(document.querySelectorAll('#prefactura-items .item-row')).map(row => row.getAttribute('data-concepto'));
+      let mejorCol = 0, mejorMatches = -1;
+      const numCols = Math.max(...filas.map(f => f.length));
+      for (let col = 0; col < numCols; col++) {
+        const matches = filas.filter(f => conceptosActivos.some(c => (f[col] || '').toLowerCase() === c.toLowerCase())).length;
+        if (matches > mejorMatches) { mejorMatches = matches; mejorCol = col; }
+      }
+      if (mejorMatches <= 0) { showToast('No se encontraron filas que coincidan con los servicios contratados de este cliente'); return; }
+
+      // Contar ocurrencias por concepto (saltando posible fila de encabezado)
+      const conteos = {};
+      filas.forEach(f => {
+        const valor = (f[mejorCol] || '').trim();
+        const match = conceptosActivos.find(c => c.toLowerCase() === valor.toLowerCase());
+        if (match) conteos[match] = (conteos[match] || 0) + 1;
+      });
+
+      document.querySelectorAll('#prefactura-items .item-row').forEach(row => {
+        const concepto = row.getAttribute('data-concepto');
+        if (conteos[concepto] !== undefined) row.querySelector('.pf-cant').value = conteos[concepto];
+      });
+      recalcPrefactura();
+
+      const resumen = Object.entries(conteos).map(([k, v]) => `${v} ${k}`).join(', ');
+      showToast(`Archivo procesado: ${resumen}`);
+    } catch (err) {
+      showToast('No se pudo leer el archivo. Verifica el formato.');
+    }
+  };
+  if (ext === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
 }
 
 function guardarPrefactura() {
@@ -2146,11 +2382,12 @@ function emitirFacturaDesdePrefactura(id) {
   const facturas = getFacturasVenta();
   const numero = 'FAC-' + String(uid(facturas)).padStart(4, '0');
   const fecha = todayISO();
-  facturas.push({ id: uid(facturas), numero, pedidoId: null, prefacturaId: p.id, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), total: p.total, estado: 'Pendiente' });
+  facturas.push({ id: uid(facturas), numero, pedidoId: null, prefacturaId: p.id, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado: 'Pendiente' });
   saveData(FACTURAS_VENTA_KEY, facturas);
   p.estado = 'Emitida';
   saveData(PREFACTURAS_KEY, prefacturas);
   renderPrefacturas();
+  actualizarNotificaciones();
   showToast(`Factura ${numero} generada desde ${p.numero}`);
 }
 
@@ -2771,7 +3008,7 @@ function eliminarUsuario(id) {
 // ===================== ADMIN: ROLES =====================
 function renderRoles() {
   const roles = getRoles();
-  const nombresModulo = { dashboard:'Dashboard', clientes:'Clientes', finanzas:'Finanzas', rrhh:'RRHH', ventas:'Ventas', admin:'Admin' };
+  const nombresModulo = { dashboard:'Dashboard', clientes:'Clientes', finanzas:'Finanzas', rrhh:'RRHH', ventas:'Ventas', facturacion:'Facturacion', admin:'Admin' };
   document.getElementById('tbody-roles').innerHTML = roles.map(r => `
     <tr class="table-row" style="border-top:1px solid var(--border)">
       <td class="px-4 py-2 font-medium">${r.nombre}</td>
@@ -2787,7 +3024,7 @@ function renderRoles() {
 function openModalRol() {
   document.getElementById('rol-id').value = '';
   document.getElementById('rol-nombre').value = '';
-  ['rol-mod-clientes','rol-mod-finanzas','rol-mod-rrhh','rol-mod-ventas','rol-mod-admin'].forEach(id => document.getElementById(id).checked = false);
+  ['rol-mod-clientes','rol-mod-finanzas','rol-mod-rrhh','rol-mod-ventas','rol-mod-facturacion','rol-mod-admin'].forEach(id => document.getElementById(id).checked = false);
   openModal('modal-rol');
 }
 
@@ -2800,6 +3037,7 @@ function editarRol(id) {
   document.getElementById('rol-mod-finanzas').checked = r.modulos.includes('finanzas');
   document.getElementById('rol-mod-rrhh').checked = r.modulos.includes('rrhh');
   document.getElementById('rol-mod-ventas').checked = r.modulos.includes('ventas');
+  document.getElementById('rol-mod-facturacion').checked = r.modulos.includes('facturacion');
   document.getElementById('rol-mod-admin').checked = r.modulos.includes('admin');
   openModal('modal-rol');
 }
@@ -2812,6 +3050,7 @@ function guardarRol() {
   if (document.getElementById('rol-mod-finanzas').checked) modulos.push('finanzas');
   if (document.getElementById('rol-mod-rrhh').checked) modulos.push('rrhh');
   if (document.getElementById('rol-mod-ventas').checked) modulos.push('ventas');
+  if (document.getElementById('rol-mod-facturacion').checked) modulos.push('facturacion');
   if (document.getElementById('rol-mod-admin').checked) modulos.push('admin');
   const roles = getRoles();
   const id = document.getElementById('rol-id').value;
@@ -2855,6 +3094,7 @@ document.addEventListener('DOMContentLoaded', () => {
   getGastos(); getCuentas(); getMovimientos();
   getEmpleados(); getNominas(); getAsistencia(); getVacaciones();
   renderDashboard();
+  actualizarNotificaciones();
 });
 </script>
 </body>
