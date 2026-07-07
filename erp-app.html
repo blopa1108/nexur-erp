@@ -604,6 +604,15 @@
       </div>
       <div class="p-6">
         <div class="card p-0 overflow-hidden">
+          <div class="flex items-center gap-3 px-4 py-3 flex-wrap" style="border-bottom:1px solid var(--border)">
+            <div style="position:relative;flex:1;min-width:220px;max-width:320px">
+              <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px"></i>
+              <input type="text" id="clientes-search" class="form-input" placeholder="Buscar por nombre, RUC, contacto o email..." oninput="renderClientes()" style="padding-left:32px">
+            </div>
+            <select class="form-select" id="clientes-filtro-servicio" style="width:220px" onchange="renderClientes()">
+              <option value="">Todos los servicios</option>
+            </select>
+          </div>
           <table class="w-full text-sm">
             <thead class="table-header"><tr>
               <th class="text-left px-4 py-2">Nombre / Razon social</th><th class="text-left px-4 py-2">RUC/RUT</th>
@@ -775,6 +784,32 @@
     <div class="flex justify-end gap-2">
       <button class="btn-secondary" onclick="closeModal('modal-cliente')">Cancelar</button>
       <button class="btn-primary" onclick="guardarCliente()"><i class="fas fa-save"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: VER CLIENTE (detalle) ===== -->
+<div class="modal" id="modal-cliente-detalle">
+  <div class="modal-box wide">
+    <div class="modal-header" id="detalle-cliente-nombre">Cliente</div>
+    <div style="font-size:12px;color:var(--muted)" id="detalle-cliente-ruc"></div>
+    <hr class="modal-divider" />
+    <div class="grid grid-cols-2 gap-3 mb-4" style="font-size:13px">
+      <div><span class="form-label" style="margin-bottom:2px">Contacto principal</span><div id="detalle-cliente-contacto">-</div></div>
+      <div><span class="form-label" style="margin-bottom:2px">Email</span><div id="detalle-cliente-email">-</div></div>
+      <div><span class="form-label" style="margin-bottom:2px">Telefono</span><div id="detalle-cliente-telefono">-</div></div>
+      <div><span class="form-label" style="margin-bottom:2px">Direccion</span><div id="detalle-cliente-direccion">-</div></div>
+    </div>
+
+    <label class="form-label">Servicios contratados</label>
+    <div id="detalle-cliente-servicios" class="mb-4" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+
+    <label class="form-label">Contactos (administrativos / tecnicos)</label>
+    <div id="detalle-cliente-contactos" class="mb-4" style="display:flex;flex-direction:column;gap:8px"></div>
+
+    <div class="flex justify-end gap-2">
+      <button class="btn-secondary" onclick="closeModal('modal-cliente-detalle')">Cerrar</button>
+      <button class="btn-primary" onclick="editarClienteDesdeDetalle()"><i class="fas fa-pen"></i> Editar cliente</button>
     </div>
   </div>
 </div>
@@ -1542,11 +1577,38 @@ function renderDashboard() {
 }
 
 // ===================== VENTAS: CLIENTES =====================
+function fillFiltroServicioSelect() {
+  const sel = document.getElementById('clientes-filtro-servicio');
+  if (sel.options.length > 1) return;
+  CONCEPTOS_FACTURACION.forEach(def => {
+    const opt = document.createElement('option');
+    opt.value = def.concepto;
+    opt.textContent = def.concepto;
+    sel.appendChild(opt);
+  });
+}
+
 function renderClientes() {
-  const clientes = getClientes();
+  fillFiltroServicioSelect();
+  const search = (document.getElementById('clientes-search').value || '').toLowerCase().trim();
+  const filtroServicio = document.getElementById('clientes-filtro-servicio').value;
+  let clientes = getClientes();
+  if (search) {
+    clientes = clientes.filter(c =>
+      c.nombre.toLowerCase().includes(search) ||
+      (c.ruc || '').toLowerCase().includes(search) ||
+      (c.contacto || '').toLowerCase().includes(search) ||
+      (c.email || '').toLowerCase().includes(search)
+    );
+  }
+  if (filtroServicio) {
+    clientes = clientes.filter(c => (c.servicios || []).some(s => s.concepto === filtroServicio));
+  }
   document.getElementById('tbody-clientes').innerHTML = clientes.map(c => `
     <tr class="table-row" style="border-top:1px solid var(--border)">
-      <td class="px-4 py-2 font-medium">${c.nombre}</td>
+      <td class="px-4 py-2 font-medium">
+        <a href="#" onclick="verClienteDetalle(${c.id});return false;" style="color:var(--navy);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${c.nombre}</a>
+      </td>
       <td class="px-4 py-2">${c.ruc}</td>
       <td class="px-4 py-2">${c.contacto}</td>
       <td class="px-4 py-2">${c.email}</td>
@@ -1554,11 +1616,68 @@ function renderClientes() {
       <td class="px-4 py-2">${(c.servicios || []).map(s => `<span class="badge badge-blue mr-1">${s.concepto}: ${fmtServicioPrecio(s)}</span>`).join('') || '<span style="color:var(--muted);font-size:12px">Sin servicios</span>'}</td>
       <td class="px-4 py-2">${(c.contactos || []).length ? `<span class="badge badge-gray">${c.contactos.length} contacto(s)</span>` : '<span style="color:var(--muted);font-size:12px">-</span>'}</td>
       <td class="px-4 py-2 text-center">
-        <button class="icon-btn" onclick="editarCliente(${c.id})"><i class="fas fa-pen"></i></button>
-        <button class="icon-btn danger" onclick="eliminarCliente(${c.id})"><i class="fas fa-trash"></i></button>
+        <button class="icon-btn" title="Ver cliente" onclick="verClienteDetalle(${c.id})"><i class="fas fa-eye"></i></button>
+        <button class="icon-btn" title="Editar" onclick="editarCliente(${c.id})"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn danger" title="Eliminar" onclick="eliminarCliente(${c.id})"><i class="fas fa-trash"></i></button>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="8" class="px-4 py-6 text-center" style="color:var(--muted)">Sin clientes registrados.</td></tr>';
+  `).join('') || `<tr><td colspan="8" class="px-4 py-6 text-center" style="color:var(--muted)">${search || filtroServicio ? 'Ningun cliente coincide con la busqueda/filtro.' : 'Sin clientes registrados.'}</td></tr>`;
+}
+
+// ===================== VENTAS: CLIENTES - DETALLE / VER =====================
+let clienteDetalleId = null;
+
+function verClienteDetalle(id) {
+  const c = getClientes().find(x => x.id === id);
+  if (!c) return;
+  clienteDetalleId = id;
+  document.getElementById('detalle-cliente-nombre').textContent = c.nombre;
+  document.getElementById('detalle-cliente-ruc').textContent = c.ruc ? `RUC/RUT: ${c.ruc}` : '';
+  document.getElementById('detalle-cliente-contacto').textContent = c.contacto || '-';
+  document.getElementById('detalle-cliente-email').textContent = c.email || '-';
+  document.getElementById('detalle-cliente-telefono').textContent = c.telefono || '-';
+  document.getElementById('detalle-cliente-direccion').textContent = c.direccion || '-';
+  document.getElementById('detalle-cliente-servicios').innerHTML = (c.servicios || []).map(s =>
+    `<span class="badge badge-blue">${s.concepto}: ${fmtServicioPrecio(s)}</span>`
+  ).join('') || '<span style="color:var(--muted);font-size:13px">Sin servicios contratados</span>';
+  renderContactosDetalle(c.contactos || []);
+  openModal('modal-cliente-detalle');
+}
+
+function renderContactosDetalle(contactos) {
+  const cont = document.getElementById('detalle-cliente-contactos');
+  if (!contactos.length) {
+    cont.innerHTML = '<div style="font-size:13px;color:var(--muted)">Este cliente no tiene contactos adicionales registrados.</div>';
+    return;
+  }
+  cont.innerHTML = contactos.map((c, idx) => `
+    <div class="contacto-detalle-row" data-idx="${idx}" onclick="seleccionarContactoDetalle(${idx})" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;border:1.5px solid var(--border);border-radius:7px;padding:10px 12px;transition:all .15s">
+      <div>
+        <div style="font-size:13px;font-weight:600">${c.nombre} <span class="badge ${c.tipo === 'Tecnico' ? 'badge-gray' : 'badge-blue'}">${c.tipo}</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${c.email || 'Sin email'}${c.telefono ? ' · ' + c.telefono : ''}</div>
+      </div>
+      <i class="fas fa-circle-check" id="check-contacto-${idx}" style="color:var(--border);font-size:16px"></i>
+    </div>
+  `).join('');
+}
+
+function seleccionarContactoDetalle(idx) {
+  const c = getClientes().find(x => x.id === clienteDetalleId);
+  if (!c || !c.contactos || !c.contactos[idx]) return;
+  document.querySelectorAll('.contacto-detalle-row').forEach(row => {
+    const selected = Number(row.dataset.idx) === idx;
+    row.style.borderColor = selected ? 'var(--navy)' : 'var(--border)';
+    row.style.background = selected ? 'var(--light)' : 'white';
+    const icon = document.getElementById('check-contacto-' + row.dataset.idx);
+    if (icon) icon.style.color = selected ? 'var(--navy)' : 'var(--border)';
+  });
+  const contacto = c.contactos[idx];
+  showToast(`Contacto seleccionado: ${contacto.nombre} (${contacto.email || 'sin email'})`);
+}
+
+function editarClienteDesdeDetalle() {
+  closeModal('modal-cliente-detalle');
+  editarCliente(clienteDetalleId);
 }
 
 function fillClienteSelects() {
