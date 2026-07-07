@@ -7,7 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -895,14 +894,7 @@
       <div><label class="form-label">Cliente</label><select class="form-select" id="prefactura-cliente" onchange="onPrefacturaClienteChange()"></select></div>
       <div><label class="form-label">Fecha</label><input type="date" class="form-input" id="prefactura-fecha" /></div>
     </div>
-    <div class="flex justify-between items-center mb-2">
-      <label class="form-label" style="margin-bottom:0">Servicios contratados por el cliente</label>
-      <div>
-        <input type="file" id="prefactura-file" class="hidden" accept=".xlsx,.xls,.csv" onchange="procesarArchivoPrefactura(this.files[0])" />
-        <button type="button" class="btn-secondary btn-sm" id="btn-prefactura-file" onclick="document.getElementById('prefactura-file').click()" disabled title="Selecciona un cliente primero"><i class="fas fa-file-arrow-up"></i> Subir archivo de detalle</button>
-      </div>
-    </div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">El archivo debe tener una columna con el nombre del servicio por fila (ej: SMS, Minutos, DID...). Si ademas tiene una columna "duracion" o "cantidad", se suma esa columna por servicio; si no existe, se cuenta la cantidad de filas de cada uno.</p>
+    <label class="form-label">Servicios contratados por el cliente</label>
     <div id="prefactura-items" class="mb-2"></div>
     <div class="flex justify-between items-center mb-4">
       <span id="prefactura-uf-note" style="font-size:11px;color:var(--muted)"></span>
@@ -2271,7 +2263,6 @@ function onPrefacturaClienteChange() {
   const clienteId = Number(document.getElementById('prefactura-cliente').value);
   const cliente = getClientes().find(c => c.id === clienteId);
   renderPrefacturaItemsForm(cliente ? cliente.servicios : [], null);
-  document.getElementById('btn-prefactura-file').disabled = !(cliente && cliente.servicios && cliente.servicios.length);
 }
 
 function openModalPrefactura() {
@@ -2282,8 +2273,6 @@ function openModalPrefactura() {
   document.getElementById('prefactura-items').innerHTML = '<div style="font-size:13px;color:var(--muted)">Selecciona un cliente para ver sus servicios contratados.</div>';
   document.getElementById('prefactura-total').textContent = '$0';
   document.getElementById('prefactura-uf-note').textContent = '';
-  document.getElementById('prefactura-file').value = '';
-  document.getElementById('btn-prefactura-file').disabled = true;
   openModal('modal-prefactura');
 }
 
@@ -2294,76 +2283,9 @@ function editarPrefactura(id) {
   document.getElementById('prefactura-id').value = p.id;
   document.getElementById('prefactura-cliente').value = p.clienteId;
   document.getElementById('prefactura-fecha').value = p.fecha;
-  document.getElementById('prefactura-file').value = '';
   const cliente = getClientes().find(c => c.id === p.clienteId);
   renderPrefacturaItemsForm(cliente ? cliente.servicios : [], p.items);
-  document.getElementById('btn-prefactura-file').disabled = !(cliente && cliente.servicios && cliente.servicios.length);
   openModal('modal-prefactura');
-}
-
-function procesarArchivoPrefactura(file) {
-  if (!file) return;
-  const ext = file.name.split('.').pop().toLowerCase();
-  if (!['xlsx','xls','csv'].includes(ext)) { showToast('Formato no soportado. Usa .xlsx, .xls o .csv'); return; }
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      let filas = [];
-      if (ext === 'csv') {
-        const lines = String(e.target.result).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const sep = lines[0] && lines[0].includes(';') ? ';' : ',';
-        filas = lines.map(l => l.split(sep).map(v => v.replace(/["']/g, '').trim()));
-      } else {
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        filas = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }).map(row => row.map(v => String(v).trim()));
-      }
-      if (!filas.length) { showToast('El archivo esta vacio'); return; }
-
-      // Detectar fila de encabezado y columna de valor ("duracion" o "cantidad")
-      const headers = filas[0].map(h => (h || '').toLowerCase());
-      const valorCol = headers.findIndex(h => h.includes('duracion') || h.includes('cantidad'));
-      const tieneEncabezado = valorCol !== -1 || headers.some(h => h.includes('concepto') || h.includes('tipo') || h.includes('servicio'));
-      const dataRows = tieneEncabezado ? filas.slice(1) : filas;
-
-      // Detectar columna que contiene el nombre del concepto/servicio
-      const conceptosActivos = Array.from(document.querySelectorAll('#prefactura-items .item-row')).map(row => row.getAttribute('data-concepto'));
-      let mejorCol = 0, mejorMatches = -1;
-      const numCols = Math.max(...filas.map(f => f.length));
-      for (let col = 0; col < numCols; col++) {
-        const matches = dataRows.filter(f => conceptosActivos.some(c => (f[col] || '').toLowerCase() === c.toLowerCase())).length;
-        if (matches > mejorMatches) { mejorMatches = matches; mejorCol = col; }
-      }
-      if (mejorMatches <= 0) { showToast('No se encontraron filas que coincidan con los servicios contratados de este cliente'); return; }
-
-      // Si existe columna "duracion"/"cantidad" se suma por concepto; si no, se cuentan las filas
-      const cantidades = {};
-      dataRows.forEach(f => {
-        const valor = (f[mejorCol] || '').trim();
-        const match = conceptosActivos.find(c => c.toLowerCase() === valor.toLowerCase());
-        if (!match) return;
-        if (valorCol !== -1) {
-          const num = parseFloat(f[valorCol]);
-          if (!isNaN(num)) cantidades[match] = (cantidades[match] || 0) + num;
-        } else {
-          cantidades[match] = (cantidades[match] || 0) + 1;
-        }
-      });
-
-      document.querySelectorAll('#prefactura-items .item-row').forEach(row => {
-        const concepto = row.getAttribute('data-concepto');
-        if (cantidades[concepto] !== undefined) row.querySelector('.pf-cant').value = cantidades[concepto];
-      });
-      recalcPrefactura();
-
-      const resumen = Object.entries(cantidades).map(([k, v]) => `${v} ${k}`).join(', ');
-      showToast(`Archivo procesado: ${resumen}`);
-    } catch (err) {
-      showToast('No se pudo leer el archivo. Verifica el formato.');
-    }
-  };
-  if (ext === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
 }
 
 function guardarPrefactura() {
