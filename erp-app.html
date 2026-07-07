@@ -779,7 +779,13 @@
     </div>
     <div id="cliente-contactos" class="mb-4" style="display:flex;flex-direction:column;gap:8px"></div>
 
-    <label class="form-label">Servicios contratados y tarifa</label>
+    <label class="form-label">Servicios contratados</label>
+    <div class="flex items-center gap-2" style="padding:0 2px;margin-bottom:4px">
+      <span style="width:16px"></span>
+      <span style="flex:1"></span>
+      <span style="width:80px;text-align:center;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Moneda</span>
+      <span style="width:110px;text-align:center;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Valor</span>
+    </div>
     <div id="cliente-servicios" class="mb-4" style="border:1px solid var(--border);border-radius:7px;padding:10px 12px;display:flex;flex-direction:column;gap:8px"></div>
     <div class="flex justify-end gap-2">
       <button class="btn-secondary" onclick="closeModal('modal-cliente')">Cancelar</button>
