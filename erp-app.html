@@ -229,6 +229,10 @@
       <div class="icon-circle"><i class="fas fa-gauge-high"></i></div>
       Dashboard
     </div>
+    <div class="nav-tab" onclick="switchTab('clientes')" id="tab-clientes">
+      <div class="icon-circle"><i class="fas fa-address-book"></i></div>
+      Clientes
+    </div>
     <div class="nav-tab" onclick="switchTab('finanzas')" id="tab-finanzas">
       <div class="icon-circle"><i class="fas fa-sack-dollar"></i></div>
       Finanzas
@@ -269,6 +273,12 @@
     <div class="sidebar-item active" onclick="showPage('dashboard')"><i class="fas fa-chart-pie"></i> Resumen general</div>
   </div>
 
+  <!-- ===== CLIENTES SIDEBAR ===== -->
+  <div class="sidebar hidden" id="sidebar-clientes">
+    <div class="sidebar-label">Clientes</div>
+    <div class="sidebar-item active" onclick="showPage('clientes')"><i class="fas fa-address-book"></i> Lista de clientes</div>
+  </div>
+
   <!-- ===== FINANZAS SIDEBAR ===== -->
   <div class="sidebar hidden" id="sidebar-finanzas">
     <div class="sidebar-label">Finanzas</div>
@@ -291,8 +301,7 @@
   <!-- ===== VENTAS SIDEBAR ===== -->
   <div class="sidebar hidden" id="sidebar-ventas">
     <div class="sidebar-label">Ventas</div>
-    <div class="sidebar-item active" onclick="showPage('ventas-clientes')"><i class="fas fa-address-book"></i> Clientes</div>
-    <div class="sidebar-item" onclick="showPage('ventas-cotizaciones')"><i class="fas fa-file-signature"></i> Cotizaciones</div>
+    <div class="sidebar-item active" onclick="showPage('ventas-cotizaciones')"><i class="fas fa-file-signature"></i> Cotizaciones</div>
     <div class="sidebar-item" onclick="showPage('ventas-pedidos')"><i class="fas fa-dolly"></i> Pedidos</div>
     <div class="sidebar-item" onclick="showPage('ventas-facturas')"><i class="fas fa-file-invoice"></i> Facturacion</div>
     <div class="sidebar-item" onclick="showPage('ventas-prefacturas')"><i class="fas fa-file-circle-plus"></i> Prefacturas</div>
@@ -588,7 +597,7 @@
     </div>
 
     <!-- ============ VENTAS ============ -->
-    <div class="page" id="page-ventas-clientes">
+    <div class="page" id="page-clientes">
       <div class="page-title">
         <div class="title-left">Clientes</div>
         <button class="btn-orange" onclick="openModalCliente()"><i class="fas fa-plus"></i> Nuevo cliente</button>
@@ -1036,6 +1045,7 @@
     <label class="form-label">Modulos habilitados</label>
     <div class="mb-4" style="display:flex;flex-direction:column;gap:8px">
       <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" checked disabled /> Dashboard (siempre incluido)</label>
+      <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="rol-mod-clientes" /> Clientes</label>
       <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="rol-mod-finanzas" /> Finanzas</label>
       <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="rol-mod-rrhh" /> RRHH</label>
       <label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="rol-mod-ventas" /> Ventas</label>
@@ -1068,10 +1078,10 @@ function getRoles() {
   const raw = localStorage.getItem(ROLES_KEY);
   if (raw) return JSON.parse(raw);
   const defaults = [
-    { id:1, nombre:'Super Admin', modulos:['dashboard','finanzas','rrhh','ventas','admin'] },
-    { id:2, nombre:'Finanzas',    modulos:['dashboard','finanzas'] },
+    { id:1, nombre:'Super Admin', modulos:['dashboard','clientes','finanzas','rrhh','ventas','admin'] },
+    { id:2, nombre:'Finanzas',    modulos:['dashboard','clientes','finanzas'] },
     { id:3, nombre:'RRHH',        modulos:['dashboard','rrhh'] },
-    { id:4, nombre:'Ventas',      modulos:['dashboard','ventas'] },
+    { id:4, nombre:'Ventas',      modulos:['dashboard','clientes','ventas'] },
     { id:5, nombre:'Solo Lectura',modulos:['dashboard'] }
   ];
   localStorage.setItem(ROLES_KEY, JSON.stringify(defaults));
@@ -1098,7 +1108,7 @@ function aplicarPermisosPorRol(roleId) {
   const roles = getRoles();
   const rol = roles.find(r => r.id === roleId) || roles[roles.length - 1];
   const modulos = rol.modulos || ['dashboard'];
-  const todos = ['dashboard','finanzas','rrhh','ventas','admin'];
+  const todos = ['dashboard','clientes','finanzas','rrhh','ventas','admin'];
   todos.forEach(m => {
     const visible = modulos.includes(m);
     const tab = document.getElementById('tab-' + m);
@@ -1187,7 +1197,7 @@ function switchTab(tab) {
   document.querySelectorAll('.sidebar').forEach(s => s.classList.add('hidden'));
   const sbEl = document.getElementById('sidebar-' + tab);
   if (sbEl) sbEl.classList.remove('hidden');
-  const defaults = { dashboard:'dashboard', finanzas:'fin-resumen', rrhh:'rrhh-empleados', ventas:'ventas-clientes', admin:'admin-usuarios' };
+  const defaults = { dashboard:'dashboard', clientes:'clientes', finanzas:'fin-resumen', rrhh:'rrhh-empleados', ventas:'ventas-cotizaciones', admin:'admin-usuarios' };
   showPage(defaults[tab]);
 }
 
@@ -1208,6 +1218,7 @@ function showPage(pageId) {
 function renderPage(pageId) {
   const renderers = {
     'dashboard': renderDashboard,
+    'clientes': renderClientes,
     'fin-resumen': renderFinResumen,
     'fin-cxc': renderFacturas,
     'fin-gastos': renderGastos,
@@ -1217,7 +1228,6 @@ function renderPage(pageId) {
     'rrhh-nomina': renderNomina,
     'rrhh-asistencia': renderAsistencia,
     'rrhh-vacaciones': renderVacaciones,
-    'ventas-clientes': renderClientes,
     'ventas-cotizaciones': renderCotizaciones,
     'ventas-pedidos': renderPedidos,
     'ventas-facturas': renderFacturasVentas,
@@ -2634,7 +2644,7 @@ function eliminarUsuario(id) {
 // ===================== ADMIN: ROLES =====================
 function renderRoles() {
   const roles = getRoles();
-  const nombresModulo = { dashboard:'Dashboard', finanzas:'Finanzas', rrhh:'RRHH', ventas:'Ventas', admin:'Admin' };
+  const nombresModulo = { dashboard:'Dashboard', clientes:'Clientes', finanzas:'Finanzas', rrhh:'RRHH', ventas:'Ventas', admin:'Admin' };
   document.getElementById('tbody-roles').innerHTML = roles.map(r => `
     <tr class="table-row" style="border-top:1px solid var(--border)">
       <td class="px-4 py-2 font-medium">${r.nombre}</td>
@@ -2650,7 +2660,7 @@ function renderRoles() {
 function openModalRol() {
   document.getElementById('rol-id').value = '';
   document.getElementById('rol-nombre').value = '';
-  ['rol-mod-finanzas','rol-mod-rrhh','rol-mod-ventas','rol-mod-admin'].forEach(id => document.getElementById(id).checked = false);
+  ['rol-mod-clientes','rol-mod-finanzas','rol-mod-rrhh','rol-mod-ventas','rol-mod-admin'].forEach(id => document.getElementById(id).checked = false);
   openModal('modal-rol');
 }
 
@@ -2659,6 +2669,7 @@ function editarRol(id) {
   if (!r) return;
   document.getElementById('rol-id').value = r.id;
   document.getElementById('rol-nombre').value = r.nombre;
+  document.getElementById('rol-mod-clientes').checked = r.modulos.includes('clientes');
   document.getElementById('rol-mod-finanzas').checked = r.modulos.includes('finanzas');
   document.getElementById('rol-mod-rrhh').checked = r.modulos.includes('rrhh');
   document.getElementById('rol-mod-ventas').checked = r.modulos.includes('ventas');
@@ -2670,6 +2681,7 @@ function guardarRol() {
   const nombre = document.getElementById('rol-nombre').value.trim();
   if (!nombre) { showToast('El nombre del rol es obligatorio'); return; }
   const modulos = ['dashboard'];
+  if (document.getElementById('rol-mod-clientes').checked) modulos.push('clientes');
   if (document.getElementById('rol-mod-finanzas').checked) modulos.push('finanzas');
   if (document.getElementById('rol-mod-rrhh').checked) modulos.push('rrhh');
   if (document.getElementById('rol-mod-ventas').checked) modulos.push('ventas');
