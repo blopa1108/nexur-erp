@@ -1333,7 +1333,7 @@ function renderSelectorEmpresa() {
   } else {
     wrap.innerHTML = `
       <select onchange="onCambiarEmpresaActiva(this)" style="background:rgba(255,255,255,.1);color:white;border:1px solid rgba(255,255,255,.25);border-radius:7px;padding:5px 8px;font-size:12px;font-weight:600">
-        ${permitidas.map(e => `<option value="${e.id}" ${e.id === activaId ? 'selected' : ''}>${e.nombre}</option>`).join('')}
+        ${permitidas.map(e => `<option value="${e.id}" style="color:#1A1F36;background:white" ${e.id === activaId ? 'selected' : ''}>${e.nombre}</option>`).join('')}
       </select>
     `;
   }
