@@ -1239,11 +1239,11 @@ function getRoles() {
   const raw = localStorage.getItem(ROLES_KEY);
   if (raw) return JSON.parse(raw);
   const defaults = [
-    { id:1, nombre:'Super Admin', modulos:['dashboard','clientes','finanzas','rrhh','ventas','facturacion','admin'] },
-    { id:2, nombre:'Finanzas',    modulos:['dashboard','clientes','finanzas','facturacion'] },
-    { id:3, nombre:'RRHH',        modulos:['dashboard','rrhh'] },
-    { id:4, nombre:'Ventas',      modulos:['dashboard','clientes','ventas','facturacion'] },
-    { id:5, nombre:'Solo Lectura',modulos:['dashboard'] }
+    { id:1, nombre:'Administrador', modulos:['dashboard','clientes','finanzas','rrhh','ventas','facturacion','admin'] },
+    { id:2, nombre:'Finanzas',      modulos:['dashboard','clientes','finanzas','facturacion'] },
+    { id:3, nombre:'RRHH',          modulos:['dashboard','rrhh'] },
+    { id:4, nombre:'Ventas',        modulos:['dashboard','clientes','ventas','facturacion'] },
+    { id:5, nombre:'Usuario (Solo Lectura)', modulos:['dashboard'] }
   ];
   localStorage.setItem(ROLES_KEY, JSON.stringify(defaults));
   return defaults;
@@ -3157,9 +3157,10 @@ function renderUsuarios() {
   `; }).join('') || '<tr><td colspan="6" class="px-4 py-6 text-center" style="color:var(--muted)">Sin usuarios registrados.</td></tr>';
 }
 
-function fillRolSelect() {
+function fillRolSelect(currentRoleId) {
   const roles = getRoles();
-  document.getElementById('usuario-rol').innerHTML = roles.map(r => `<option value="${r.id}">${r.nombre}</option>`).join('');
+  const permitidos = roles.filter(r => r.id === 1 || r.id === 5 || r.id === currentRoleId);
+  document.getElementById('usuario-rol').innerHTML = permitidos.map(r => `<option value="${r.id}">${r.nombre}</option>`).join('');
 }
 
 function renderUsuarioEmpresasChecklist(empresaIds) {
@@ -3197,7 +3198,7 @@ function editarUsuario(id) {
   const u = getUsers().find(x => x.id === id);
   if (!u) return;
   document.getElementById('modal-usuario-title').textContent = 'Editar usuario';
-  fillRolSelect();
+  fillRolSelect(u.roleId);
   document.getElementById('usuario-id').value = u.id;
   document.getElementById('usuario-username').value = u.username;
   document.getElementById('usuario-password').value = '';
