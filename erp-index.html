@@ -233,10 +233,10 @@
       const raw = localStorage.getItem(USERS_KEY);
       if (raw) return JSON.parse(raw);
       const defaults = [
-        { id:1, username:'admin',    password:'admin123', roleId:1, nombre:'Administrador General', email:'admin@nexurerp.com',    active:true },
-        { id:2, username:'finanzas', password:'fin2024',  roleId:2, nombre:'Ana Torres',             email:'finanzas@nexurerp.com', active:true },
-        { id:3, username:'rrhh',     password:'rrhh2024', roleId:3, nombre:'Carlos Mena',             email:'rrhh@nexurerp.com',     active:true },
-        { id:4, username:'ventas',   password:'ven2024',  roleId:4, nombre:'Lucia Fernandez',         email:'ventas@nexurerp.com',   active:true }
+        { id:1, username:'admin',    password:'admin123', roleId:1, nombre:'Administrador General', email:'admin@nexurerp.com',    active:true, empresaIds:'todas' },
+        { id:2, username:'finanzas', password:'fin2024',  roleId:2, nombre:'Ana Torres',             email:'finanzas@nexurerp.com', active:true, empresaIds:[1] },
+        { id:3, username:'rrhh',     password:'rrhh2024', roleId:3, nombre:'Carlos Mena',             email:'rrhh@nexurerp.com',     active:true, empresaIds:[1] },
+        { id:4, username:'ventas',   password:'ven2024',  roleId:4, nombre:'Lucia Fernandez',         email:'ventas@nexurerp.com',   active:true, empresaIds:[1] }
       ];
       localStorage.setItem(USERS_KEY, JSON.stringify(defaults));
       return defaults;

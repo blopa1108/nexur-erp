@@ -256,6 +256,7 @@
     </div>
   </div>
   <div class="ml-auto flex items-center gap-3">
+    <div id="empresa-activa-wrap" class="flex items-center"></div>
     <div style="position:relative">
       <button onclick="toggleNotificaciones()" class="flex items-center justify-center" style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.1);border:none;cursor:pointer;position:relative">
         <i class="fas fa-bell" style="color:rgba(255,255,255,.8);font-size:15px"></i>
@@ -332,6 +333,7 @@
     <div class="sidebar-label">Administracion</div>
     <div class="sidebar-item active" onclick="showPage('admin-usuarios')"><i class="fas fa-users-gear"></i> Usuarios</div>
     <div class="sidebar-item" onclick="showPage('admin-roles')"><i class="fas fa-user-shield"></i> Roles y permisos</div>
+    <div class="sidebar-item" onclick="showPage('admin-empresas')"><i class="fas fa-building"></i> Empresas</div>
     <div class="sidebar-item" onclick="showPage('admin-config')"><i class="fas fa-sliders"></i> Configuracion</div>
   </div>
 
@@ -764,6 +766,24 @@
       </div>
     </div>
 
+    <div class="page" id="page-admin-empresas">
+      <div class="page-title">
+        <div class="title-left">Empresas</div>
+        <button class="btn-orange" onclick="openModalEmpresa()"><i class="fas fa-plus"></i> Nueva empresa</button>
+      </div>
+      <div class="p-6">
+        <div class="card p-0 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="table-header"><tr>
+              <th class="text-left px-4 py-2">Logo</th><th class="text-left px-4 py-2">Nombre</th>
+              <th class="text-left px-4 py-2">RUT</th><th class="text-center px-4 py-2">Acciones</th>
+            </tr></thead>
+            <tbody id="tbody-empresas"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-admin-config">
       <div class="page-title"><div class="title-left">Configuracion</div></div>
       <div class="p-6">
@@ -1138,9 +1158,39 @@
     <div class="mb-4 flex items-center gap-2">
       <input type="checkbox" id="usuario-activo" checked /> <label for="usuario-activo" style="font-size:13px">Usuario activo</label>
     </div>
+    <label class="form-label">Empresas con acceso</label>
+    <div class="mb-4" style="border:1px solid var(--border);border-radius:7px;padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+      <label style="font-size:13px;display:flex;align-items:center;gap:8px;font-weight:600">
+        <input type="checkbox" id="usuario-todas-empresas" onchange="toggleUsuarioTodasEmpresas()" /> Todas las empresas
+      </label>
+      <div id="usuario-empresas-lista" style="display:flex;flex-direction:column;gap:6px;padding-left:22px"></div>
+    </div>
     <div class="flex justify-end gap-2">
       <button class="btn-secondary" onclick="closeModal('modal-usuario')">Cancelar</button>
       <button class="btn-primary" onclick="guardarUsuario()"><i class="fas fa-save"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: EMPRESA ===== -->
+<div class="modal" id="modal-empresa">
+  <div class="modal-box">
+    <div class="modal-header" id="modal-empresa-title">Nueva empresa</div>
+    <hr class="modal-divider" />
+    <input type="hidden" id="empresa-id" />
+    <div class="mb-3"><label class="form-label">Nombre de la empresa</label><input class="form-input" id="empresa-nombre" /></div>
+    <div class="mb-3"><label class="form-label">RUT (opcional)</label><input class="form-input" id="empresa-rut" /></div>
+    <div class="mb-4">
+      <label class="form-label">Logo (opcional)</label>
+      <input type="file" id="empresa-logo-file" accept="image/*" class="form-input" onchange="previsualizarLogoEmpresa(this)" />
+      <div class="flex items-center gap-3 mt-2">
+        <img id="empresa-logo-preview" src="" style="height:44px;max-width:160px;object-fit:contain;display:none;border:1px solid var(--border);border-radius:6px;padding:4px" />
+        <button type="button" class="btn-secondary btn-sm" id="btn-quitar-logo-empresa" onclick="quitarLogoEmpresa()" style="display:none">Quitar logo</button>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn-secondary" onclick="closeModal('modal-empresa')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarEmpresa()"><i class="fas fa-save"></i> Guardar</button>
     </div>
   </div>
 </div>
@@ -1205,15 +1255,84 @@ function getUsers() {
   const raw = localStorage.getItem(USERS_KEY);
   if (raw) return JSON.parse(raw);
   const defaults = [
-    { id:1, username:'admin',    password:'admin123', roleId:1, nombre:'Administrador General', email:'admin@nexurerp.com',    active:true },
-    { id:2, username:'finanzas', password:'fin2024',  roleId:2, nombre:'Ana Torres',             email:'finanzas@nexurerp.com', active:true },
-    { id:3, username:'rrhh',     password:'rrhh2024', roleId:3, nombre:'Carlos Mena',             email:'rrhh@nexurerp.com',     active:true },
-    { id:4, username:'ventas',   password:'ven2024',  roleId:4, nombre:'Lucia Fernandez',         email:'ventas@nexurerp.com',   active:true }
+    { id:1, username:'admin',    password:'admin123', roleId:1, nombre:'Administrador General', email:'admin@nexurerp.com',    active:true, empresaIds:'todas' },
+    { id:2, username:'finanzas', password:'fin2024',  roleId:2, nombre:'Ana Torres',             email:'finanzas@nexurerp.com', active:true, empresaIds:[1] },
+    { id:3, username:'rrhh',     password:'rrhh2024', roleId:3, nombre:'Carlos Mena',             email:'rrhh@nexurerp.com',     active:true, empresaIds:[1] },
+    { id:4, username:'ventas',   password:'ven2024',  roleId:4, nombre:'Lucia Fernandez',         email:'ventas@nexurerp.com',   active:true, empresaIds:[1] }
   ];
   localStorage.setItem(USERS_KEY, JSON.stringify(defaults));
   return defaults;
 }
 function saveUsers(u) { localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+
+// ===================== EMPRESAS (multi-empresa) =====================
+const EMPRESAS_KEY = 'nexur_erp_empresas';
+const EMPRESA_ACTIVA_KEY = 'nexur_erp_empresa_activa';
+
+function getEmpresas() {
+  const raw = localStorage.getItem(EMPRESAS_KEY);
+  if (raw) return JSON.parse(raw);
+  const defaults = [
+    { id:1, nombre:'Nexur ERP', rut:'', logo:null },
+    { id:2, nombre:'Comercial Pacifico Ltda.', rut:'77.456.123-9', logo:null }
+  ];
+  localStorage.setItem(EMPRESAS_KEY, JSON.stringify(defaults));
+  return defaults;
+}
+function saveEmpresas(e) { localStorage.setItem(EMPRESAS_KEY, JSON.stringify(e)); }
+
+function empresasPermitidas(user) {
+  const empresas = getEmpresas();
+  if (!user || user.empresaIds === 'todas') return empresas;
+  const ids = Array.isArray(user.empresaIds) ? user.empresaIds : [];
+  return empresas.filter(e => ids.includes(e.id));
+}
+
+function usuarioActual() {
+  const s = getSession();
+  if (!s) return null;
+  return getUsers().find(u => u.id === s.id) || null;
+}
+
+function getEmpresaActivaId() {
+  const permitidas = empresasPermitidas(usuarioActual());
+  if (!permitidas.length) return null;
+  const guardada = Number(localStorage.getItem(EMPRESA_ACTIVA_KEY));
+  if (permitidas.some(e => e.id === guardada)) return guardada;
+  setEmpresaActiva(permitidas[0].id);
+  return permitidas[0].id;
+}
+
+function setEmpresaActiva(id) {
+  localStorage.setItem(EMPRESA_ACTIVA_KEY, String(id));
+  const nombreEl = document.getElementById('empresa-activa-nombre');
+  const empresa = getEmpresas().find(e => e.id === Number(id));
+  if (nombreEl && empresa) nombreEl.textContent = empresa.nombre;
+  ['clientes','ventas-cotizaciones','ventas-pedidos','facturacion-prefacturas','facturacion-facturas','fin-resumen','fin-cxc','dashboard'].forEach(pageId => {
+    if (currentPage === pageId) renderPage(pageId);
+  });
+  actualizarNotificaciones();
+}
+
+function onCambiarEmpresaActiva(select) {
+  setEmpresaActiva(Number(select.value));
+}
+
+function renderSelectorEmpresa() {
+  const permitidas = empresasPermitidas(usuarioActual());
+  const wrap = document.getElementById('empresa-activa-wrap');
+  if (!wrap) return;
+  const activaId = getEmpresaActivaId();
+  if (permitidas.length <= 1) {
+    wrap.innerHTML = `<span id="empresa-activa-nombre" style="font-size:12px;color:rgba(255,255,255,.85);font-weight:600">${(permitidas[0] || {}).nombre || '-'}</span>`;
+  } else {
+    wrap.innerHTML = `
+      <select onchange="onCambiarEmpresaActiva(this)" style="background:rgba(255,255,255,.1);color:white;border:1px solid rgba(255,255,255,.25);border-radius:7px;padding:5px 8px;font-size:12px;font-weight:600">
+        ${permitidas.map(e => `<option value="${e.id}" ${e.id === activaId ? 'selected' : ''}>${e.nombre}</option>`).join('')}
+      </select>
+    `;
+  }
+}
 
 function aplicarPermisosPorRol(roleId) {
   const roles = getRoles();
@@ -1247,6 +1366,7 @@ function aplicarPermisosPorRol(roleId) {
     if (av) av.textContent = (s.nombre || s.username).charAt(0).toUpperCase();
     if (rl) rl.textContent = rol ? rol.nombre : '';
     aplicarPermisosPorRol(s.roleId);
+    renderSelectorEmpresa();
   });
 })();
 
@@ -1284,7 +1404,8 @@ document.addEventListener('click', e => {
 function getFacturasPorCobrar() {
   const hoy = todayISO();
   const limite = addDaysISO(hoy, 3);
-  return getFacturasVenta().filter(f => f.estado !== 'Pagada' && f.fechaCobro && f.fechaCobro <= limite);
+  const activaId = getEmpresaActivaId();
+  return getFacturasVenta().filter(f => f.empresaId === activaId && f.estado !== 'Pagada' && f.fechaCobro && f.fechaCobro <= limite);
 }
 
 function actualizarNotificaciones() {
@@ -1390,6 +1511,7 @@ function renderPage(pageId) {
     'facturacion-prefacturas': renderPrefacturas,
     'admin-usuarios': renderUsuarios,
     'admin-roles': renderRoles,
+    'admin-empresas': renderEmpresas,
     'admin-config': renderConfig
   };
   if (renderers[pageId]) renderers[pageId]();
@@ -1475,16 +1597,18 @@ function getClientes() {
   let d = getData(CLIENTES_KEY);
   if (d) return d;
   d = [
-    { id:1, nombre:'Comercial Andina Ltda.', ruc:'76.123.456-7', contacto:'Marcela Rios', email:'contacto@andina.cl', telefono:'+56 9 6123 4567', direccion:'Av. Providencia 1234, Santiago',
+    { id:1, empresaId:1, nombre:'Comercial Andina Ltda.', ruc:'76.123.456-7', contacto:'Marcela Rios', email:'contacto@andina.cl', telefono:'+56 9 6123 4567', direccion:'Av. Providencia 1234, Santiago',
       servicios:[{concepto:'SMS', precio:25, moneda:'CLP'}, {concepto:'SIP Trunk', precio:0.5, moneda:'UF'}],
       contactos:[{nombre:'Felipe Diaz', tipo:'Administrativo', email:'felipe.diaz@andina.cl', telefono:'+56 9 1122 3344'}, {nombre:'Nicolas Vega', tipo:'Tecnico', email:'nicolas.vega@andina.cl', telefono:'+56 9 5566 7788'}] },
-    { id:2, nombre:'Tecnored SPA', ruc:'77.888.999-2', contacto:'Ricardo Paredes', email:'ventas@tecnored.cl', telefono:'+56 9 5544 3322', direccion:'Calle Los Alerces 456, Concepcion',
+    { id:2, empresaId:1, nombre:'Tecnored SPA', ruc:'77.888.999-2', contacto:'Ricardo Paredes', email:'ventas@tecnored.cl', telefono:'+56 9 5544 3322', direccion:'Calle Los Alerces 456, Concepcion',
       servicios:[{concepto:'Minutos', precio:18, moneda:'CLP'}, {concepto:'DID', precio:6000, moneda:'CLP'}, {concepto:'Numeracion 600', precio:8000, moneda:'CLP'}],
       contactos:[{nombre:'Paula Lagos', tipo:'Administrativo', email:'paula.lagos@tecnored.cl', telefono:'+56 9 2233 4455'}] },
-    { id:3, nombre:'Distribuidora Maipo', ruc:'78.222.333-4', contacto:'Camila Soto', email:'camila@distmaipo.cl', telefono:'+56 9 8877 1122', direccion:'Ruta 5 Sur km 12, Rancagua',
+    { id:3, empresaId:1, nombre:'Distribuidora Maipo', ruc:'78.222.333-4', contacto:'Camila Soto', email:'camila@distmaipo.cl', telefono:'+56 9 8877 1122', direccion:'Ruta 5 Sur km 12, Rancagua',
       servicios:[{concepto:'SMS', precio:22, moneda:'CLP'}], contactos:[] },
-    { id:4, nombre:'Constructora Pacifico', ruc:'79.111.222-9', contacto:'Jorge Villalobos', email:'jvillalobos@pacifico.cl', telefono:'+56 9 3344 5566', direccion:'Av. Kennedy 789, Santiago',
-      servicios:[], contactos:[] }
+    { id:4, empresaId:1, nombre:'Constructora Pacifico', ruc:'79.111.222-9', contacto:'Jorge Villalobos', email:'jvillalobos@pacifico.cl', telefono:'+56 9 3344 5566', direccion:'Av. Kennedy 789, Santiago',
+      servicios:[], contactos:[] },
+    { id:5, empresaId:2, nombre:'Ferreteria El Roble', ruc:'80.333.444-5', contacto:'Sandra Munoz', email:'sandra@elroble.cl', telefono:'+56 9 7788 9900', direccion:'Camino Real 200, Rancagua',
+      servicios:[{concepto:'SMS', precio:20, moneda:'CLP'}], contactos:[] }
   ];
   saveData(CLIENTES_KEY, d);
   return d;
@@ -1494,7 +1618,7 @@ function getPrefacturas() {
   let d = getData(PREFACTURAS_KEY);
   if (d) return d;
   d = [
-    { id:1, numero:'PRE-0001', clienteId:2, fecha: offsetDateISO(0, 4),
+    { id:1, empresaId:1, numero:'PRE-0001', clienteId:2, fecha: offsetDateISO(0, 4),
       items:[{concepto:'Minutos', cantidad:1200, precioUnitario:18, moneda:'CLP', subtotal:21600}, {concepto:'DID', cantidad:3, precioUnitario:6000, moneda:'CLP', subtotal:18000}],
       total:39600, estado:'Emitida' }
   ];
@@ -1506,9 +1630,9 @@ function getCotizaciones() {
   let d = getData(COTIZACIONES_KEY);
   if (d) return d;
   d = [
-    { id:1, numero:'COT-0001', clienteId:1, fecha: offsetDateISO(1, 5), items:[{descripcion:'Consultoria implementacion', cantidad:1, precio:850000, subtotal:850000}], total:850000, estado:'Aceptada' },
-    { id:2, numero:'COT-0002', clienteId:2, fecha: offsetDateISO(0, 10), items:[{descripcion:'Licencias software (10 usuarios)', cantidad:10, precio:45000, subtotal:450000}], total:450000, estado:'Enviada' },
-    { id:3, numero:'COT-0003', clienteId:3, fecha: offsetDateISO(0, 3), items:[{descripcion:'Mantenimiento mensual', cantidad:1, precio:320000, subtotal:320000}], total:320000, estado:'Borrador' }
+    { id:1, empresaId:1, numero:'COT-0001', clienteId:1, fecha: offsetDateISO(1, 5), items:[{descripcion:'Consultoria implementacion', cantidad:1, precio:850000, subtotal:850000}], total:850000, estado:'Aceptada' },
+    { id:2, empresaId:1, numero:'COT-0002', clienteId:2, fecha: offsetDateISO(0, 10), items:[{descripcion:'Licencias software (10 usuarios)', cantidad:10, precio:45000, subtotal:450000}], total:450000, estado:'Enviada' },
+    { id:3, empresaId:1, numero:'COT-0003', clienteId:3, fecha: offsetDateISO(0, 3), items:[{descripcion:'Mantenimiento mensual', cantidad:1, precio:320000, subtotal:320000}], total:320000, estado:'Borrador' }
   ];
   saveData(COTIZACIONES_KEY, d);
   return d;
@@ -1518,8 +1642,8 @@ function getPedidos() {
   let d = getData(PEDIDOS_KEY);
   if (d) return d;
   d = [
-    { id:1, numero:'PED-0001', cotizacionId:1, clienteId:1, fecha: offsetDateISO(1, 8), items:[{descripcion:'Consultoria implementacion', cantidad:1, precio:850000, subtotal:850000}], total:850000, estado:'Completado' },
-    { id:2, numero:'PED-0002', cotizacionId:null, clienteId:4, fecha: offsetDateISO(0, 12), items:[{descripcion:'Materiales de construccion', cantidad:1, precio:1250000, subtotal:1250000}], total:1250000, estado:'En proceso' }
+    { id:1, empresaId:1, numero:'PED-0001', cotizacionId:1, clienteId:1, fecha: offsetDateISO(1, 8), items:[{descripcion:'Consultoria implementacion', cantidad:1, precio:850000, subtotal:850000}], total:850000, estado:'Completado' },
+    { id:2, empresaId:1, numero:'PED-0002', cotizacionId:null, clienteId:4, fecha: offsetDateISO(0, 12), items:[{descripcion:'Materiales de construccion', cantidad:1, precio:1250000, subtotal:1250000}], total:1250000, estado:'En proceso' }
   ];
   saveData(PEDIDOS_KEY, d);
   return d;
@@ -1532,9 +1656,9 @@ function getFacturasVenta() {
   const f2 = offsetDateISO(2, 15);
   const f3 = offsetDateISO(0, 2);
   d = [
-    { id:1, numero:'FAC-0001', pedidoId:1, prefacturaId:null, clienteId:1, fecha:f1, fechaVencimiento: addDaysISO(f1, 30), fechaCobro: addDaysISO(f1, 30), total:850000, estado:'Pagada' },
-    { id:2, numero:'FAC-0002', pedidoId:null, prefacturaId:null, clienteId:3, fecha: f2, fechaVencimiento: addDaysISO(f2, 30), fechaCobro: addDaysISO(f2, 30), total:410000, estado:'Vencida' },
-    { id:3, numero:'FAC-0003', pedidoId:null, prefacturaId:null, clienteId:2, fecha: f3, fechaVencimiento: addDaysISO(f3, 30), fechaCobro: addDaysISO(todayISO(), 2), total:620000, estado:'Pendiente' }
+    { id:1, empresaId:1, numero:'FAC-0001', pedidoId:1, prefacturaId:null, clienteId:1, fecha:f1, fechaVencimiento: addDaysISO(f1, 30), fechaCobro: addDaysISO(f1, 30), total:850000, estado:'Pagada' },
+    { id:2, empresaId:1, numero:'FAC-0002', pedidoId:null, prefacturaId:null, clienteId:3, fecha: f2, fechaVencimiento: addDaysISO(f2, 30), fechaCobro: addDaysISO(f2, 30), total:410000, estado:'Vencida' },
+    { id:3, empresaId:1, numero:'FAC-0003', pedidoId:null, prefacturaId:null, clienteId:2, fecha: f3, fechaVencimiento: addDaysISO(f3, 30), fechaCobro: addDaysISO(todayISO(), 2), total:620000, estado:'Pendiente' }
   ];
   saveData(FACTURAS_VENTA_KEY, d);
   return d;
@@ -1646,9 +1770,10 @@ function saldoCuenta(cuentaId) {
 let dashChartInstance;
 function renderDashboard() {
   const now = new Date();
-  const facturas = getFacturasVenta();
+  const activaId = getEmpresaActivaId();
+  const facturas = getFacturasVenta().filter(f => f.empresaId === activaId);
   const gastos = getGastos();
-  const pedidos = getPedidos();
+  const pedidos = getPedidos().filter(p => p.empresaId === activaId);
   const empleados = getEmpleados();
   const cuentas = getCuentas();
 
@@ -1714,11 +1839,16 @@ function fillFiltroServicioSelect() {
   });
 }
 
+function clientesDeEmpresaActiva() {
+  const activaId = getEmpresaActivaId();
+  return getClientes().filter(c => c.empresaId === activaId);
+}
+
 function renderClientes() {
   fillFiltroServicioSelect();
   const search = (document.getElementById('clientes-search').value || '').toLowerCase().trim();
   const filtroServicio = document.getElementById('clientes-filtro-servicio').value;
-  let clientes = getClientes();
+  let clientes = clientesDeEmpresaActiva();
   if (search) {
     clientes = clientes.filter(c =>
       c.nombre.toLowerCase().includes(search) ||
@@ -1806,7 +1936,7 @@ function editarClienteDesdeDetalle() {
 }
 
 function fillClienteSelects() {
-  const clientes = getClientes();
+  const clientes = clientesDeEmpresaActiva();
   const opts = clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
   ['cotizacion-cliente','pedido-cliente','prefactura-cliente','factura-cliente'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = opts; });
 }
@@ -1931,7 +2061,7 @@ function guardarCliente() {
     const i = clientes.findIndex(x => x.id === Number(id));
     clientes[i] = { ...clientes[i], ...data };
   } else {
-    clientes.push({ id: uid(clientes), ...data });
+    clientes.push({ id: uid(clientes), empresaId: getEmpresaActivaId(), ...data });
   }
   saveData(CLIENTES_KEY, clientes);
   closeModal('modal-cliente');
@@ -1948,7 +2078,8 @@ function eliminarCliente(id) {
 
 // ===================== VENTAS: COTIZACIONES =====================
 function renderCotizaciones() {
-  const cotizaciones = getCotizaciones();
+  const activaId = getEmpresaActivaId();
+  const cotizaciones = getCotizaciones().filter(c => c.empresaId === activaId);
   document.getElementById('tbody-cotizaciones').innerHTML = cotizaciones.map(c => `
     <tr class="table-row" style="border-top:1px solid var(--border)">
       <td class="px-4 py-2 font-medium">${c.numero}</td>
@@ -1984,7 +2115,7 @@ function guardarCotizacion() {
   const total = items.reduce((s,i)=>s+i.subtotal,0);
   const cotizaciones = getCotizaciones();
   const numero = 'COT-' + String(uid(cotizaciones)).padStart(4,'0');
-  cotizaciones.push({ id: uid(cotizaciones), numero, clienteId, fecha: todayISO(), items, total, estado:'Borrador' });
+  cotizaciones.push({ id: uid(cotizaciones), empresaId: getEmpresaActivaId(), numero, clienteId, fecha: todayISO(), items, total, estado:'Borrador' });
   saveData(COTIZACIONES_KEY, cotizaciones);
   closeModal('modal-cotizacion');
   renderCotizaciones();
@@ -2007,7 +2138,7 @@ function convertirAPedido(cotizacionId) {
   if (!cot) return;
   const pedidos = getPedidos();
   const numero = 'PED-' + String(uid(pedidos)).padStart(4,'0');
-  pedidos.push({ id: uid(pedidos), numero, cotizacionId: cot.id, clienteId: cot.clienteId, fecha: todayISO(), items: cot.items, total: cot.total, estado:'Pendiente' });
+  pedidos.push({ id: uid(pedidos), empresaId: cot.empresaId, numero, cotizacionId: cot.id, clienteId: cot.clienteId, fecha: todayISO(), items: cot.items, total: cot.total, estado:'Pendiente' });
   saveData(PEDIDOS_KEY, pedidos);
   renderCotizaciones();
   showToast(`Pedido ${numero} creado a partir de ${cot.numero}`);
@@ -2023,7 +2154,8 @@ function eliminarCotizacion(id) {
 
 // ===================== VENTAS: PEDIDOS =====================
 function renderPedidos() {
-  const pedidos = getPedidos();
+  const activaId = getEmpresaActivaId();
+  const pedidos = getPedidos().filter(p => p.empresaId === activaId);
   const facturas = getFacturasVenta();
   document.getElementById('tbody-pedidos').innerHTML = pedidos.map(p => {
     const yaFacturado = facturas.some(f => f.pedidoId === p.id);
@@ -2063,7 +2195,7 @@ function guardarPedido() {
   const total = items.reduce((s,i)=>s+i.subtotal,0);
   const pedidos = getPedidos();
   const numero = 'PED-' + String(uid(pedidos)).padStart(4,'0');
-  pedidos.push({ id: uid(pedidos), numero, cotizacionId:null, clienteId, fecha: todayISO(), items, total, estado:'Pendiente' });
+  pedidos.push({ id: uid(pedidos), empresaId: getEmpresaActivaId(), numero, cotizacionId:null, clienteId, fecha: todayISO(), items, total, estado:'Pendiente' });
   saveData(PEDIDOS_KEY, pedidos);
   closeModal('modal-pedido');
   renderPedidos();
@@ -2087,7 +2219,7 @@ function facturarPedido(pedidoId) {
   const facturas = getFacturasVenta();
   const numero = 'FAC-' + String(uid(facturas)).padStart(4,'0');
   const fecha = todayISO();
-  facturas.push({ id: uid(facturas), numero, pedidoId: p.id, prefacturaId: null, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado:'Pendiente' });
+  facturas.push({ id: uid(facturas), empresaId: p.empresaId, numero, pedidoId: p.id, prefacturaId: null, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado:'Pendiente' });
   saveData(FACTURAS_VENTA_KEY, facturas);
   renderPedidos();
   actualizarNotificaciones();
@@ -2108,8 +2240,13 @@ function facturaOrigen(f) {
   return 'Manual';
 }
 
+function facturasDeEmpresaActiva() {
+  const activaId = getEmpresaActivaId();
+  return getFacturasVenta().filter(f => f.empresaId === activaId);
+}
+
 function renderFacturasVentas() {
-  const facturas = getFacturasVenta();
+  const facturas = facturasDeEmpresaActiva();
   document.getElementById('tbody-facturas-ventas').innerHTML = facturas.map(f => `
     <tr class="table-row" style="border-top:1px solid var(--border)">
       <td class="px-4 py-2 font-medium">${f.numero}</td>
@@ -2183,7 +2320,7 @@ function guardarFactura() {
     const i = facturas.findIndex(x => x.id === Number(id));
     facturas[i] = { ...facturas[i], clienteId, numero, fecha, total: monto, estado, fechaCobro };
   } else {
-    facturas.push({ id: uid(facturas), numero, pedidoId: null, prefacturaId: null, clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro, total: monto, estado });
+    facturas.push({ id: uid(facturas), empresaId: getEmpresaActivaId(), numero, pedidoId: null, prefacturaId: null, clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro, total: monto, estado });
   }
   saveData(FACTURAS_VENTA_KEY, facturas);
   closeModal('modal-factura');
@@ -2202,7 +2339,8 @@ function eliminarFactura(id) {
 
 // ===================== VENTAS: PREFACTURAS =====================
 function renderPrefacturas() {
-  const prefacturas = getPrefacturas();
+  const activaId = getEmpresaActivaId();
+  const prefacturas = getPrefacturas().filter(p => p.empresaId === activaId);
   document.getElementById('tbody-prefacturas').innerHTML = prefacturas.map(p => `
     <tr class="table-row" style="border-top:1px solid var(--border)">
       <td class="px-4 py-2 font-medium">${p.numero}</td>
@@ -2322,7 +2460,7 @@ function guardarPrefactura() {
     prefacturas[i] = { ...prefacturas[i], clienteId, fecha, items, total };
   } else {
     const numero = 'PRE-' + String(uid(prefacturas)).padStart(4, '0');
-    prefacturas.push({ id: uid(prefacturas), numero, clienteId, fecha, items, total, estado: 'Emitida' });
+    prefacturas.push({ id: uid(prefacturas), empresaId: getEmpresaActivaId(), numero, clienteId, fecha, items, total, estado: 'Emitida' });
   }
   saveData(PREFACTURAS_KEY, prefacturas);
   closeModal('modal-prefactura');
@@ -2337,7 +2475,7 @@ function emitirFacturaDesdePrefactura(id) {
   const facturas = getFacturasVenta();
   const numero = 'FAC-' + String(uid(facturas)).padStart(4, '0');
   const fecha = todayISO();
-  facturas.push({ id: uid(facturas), numero, pedidoId: null, prefacturaId: p.id, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado: 'Pendiente' });
+  facturas.push({ id: uid(facturas), empresaId: p.empresaId, numero, pedidoId: null, prefacturaId: p.id, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado: 'Pendiente' });
   saveData(FACTURAS_VENTA_KEY, facturas);
   p.estado = 'Facturada';
   saveData(PREFACTURAS_KEY, prefacturas);
@@ -2360,6 +2498,17 @@ function itemValorTexto(item) {
   return item.moneda === 'UF' ? `UF ${item.precioUnitario}` : fmtMoney(item.precioUnitario);
 }
 
+function empresaHeaderHTML(empresaId) {
+  const empresa = getEmpresas().find(e => e.id === empresaId) || {};
+  if (empresa.logo) {
+    return `<img src="${empresa.logo}" style="height:44px;max-width:220px;object-fit:contain" />`;
+  }
+  return `
+    <div style="font-size:18px;font-weight:700;color:var(--navy)">${empresa.nombre || 'Nexur ERP'}</div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">${empresa.rut || 'Gestion empresarial'}</div>
+  `;
+}
+
 function verVistaPreviaPrefactura(id) {
   const p = getPrefacturas().find(x => x.id === id);
   if (!p) return;
@@ -2368,8 +2517,7 @@ function verVistaPreviaPrefactura(id) {
   document.getElementById('prefactura-preview-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--navy);padding-bottom:14px;margin-bottom:18px">
       <div>
-        <div style="font-size:18px;font-weight:700;color:var(--navy)">NEXUR ERP</div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Gestion empresarial</div>
+        ${empresaHeaderHTML(p.empresaId)}
       </div>
       <div style="text-align:right">
         <div style="font-size:15px;font-weight:700;color:var(--orange)">PREFACTURA</div>
@@ -2410,12 +2558,17 @@ function descargarPrefacturaPDF(id) {
   const p = getPrefacturas().find(x => x.id === id);
   if (!p) return;
   const cliente = getClientes().find(c => c.id === p.clienteId) || {};
+  const empresa = getEmpresas().find(e => e.id === p.empresaId) || {};
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   let y = 20;
 
-  doc.setFontSize(16); doc.setTextColor(0, 27, 114); doc.text('NEXUR ERP', 14, y);
-  doc.setFontSize(9); doc.setTextColor(107, 122, 153); doc.text('Gestion empresarial', 14, y + 6);
+  if (empresa.logo) {
+    try { doc.addImage(empresa.logo, 14, y - 8, 40, 16, undefined, 'FAST'); } catch (e) {}
+  } else {
+    doc.setFontSize(16); doc.setTextColor(0, 27, 114); doc.text(empresa.nombre || 'Nexur ERP', 14, y);
+    doc.setFontSize(9); doc.setTextColor(107, 122, 153); doc.text(empresa.rut || 'Gestion empresarial', 14, y + 6);
+  }
   doc.setFontSize(14); doc.setTextColor(255, 79, 0); doc.text('PREFACTURA', 196, y, { align: 'right' });
   doc.setFontSize(11); doc.setTextColor(26, 31, 54); doc.text(p.numero, 196, y + 6, { align: 'right' });
   doc.setFontSize(9); doc.setTextColor(107, 122, 153);
@@ -2460,7 +2613,7 @@ function descargarPrefacturaPDF(id) {
 
 // ===================== FINANZAS: RESUMEN / CXC =====================
 function renderFinResumen() {
-  const facturas = getFacturasVenta();
+  const facturas = facturasDeEmpresaActiva();
   const gastos = getGastos();
   const cuentas = getCuentas();
   const cxc = facturas.filter(f => estadoFacturaCalc(f) !== 'Pagada').reduce((s,f)=>s+f.total,0);
@@ -2483,7 +2636,7 @@ function renderFinResumen() {
 
 function renderFacturas() {
   const filtro = document.getElementById('filtro-cxc-estado').value;
-  let facturas = getFacturasVenta();
+  let facturas = facturasDeEmpresaActiva();
   if (filtro) facturas = facturas.filter(f => estadoFacturaCalc(f) === filtro);
   document.getElementById('tbody-facturas').innerHTML = facturas.map(f => `
     <tr class="table-row" style="border-top:1px solid var(--border)">
@@ -3009,11 +3162,34 @@ function fillRolSelect() {
   document.getElementById('usuario-rol').innerHTML = roles.map(r => `<option value="${r.id}">${r.nombre}</option>`).join('');
 }
 
+function renderUsuarioEmpresasChecklist(empresaIds) {
+  const empresas = getEmpresas();
+  const todas = empresaIds === 'todas';
+  document.getElementById('usuario-todas-empresas').checked = todas;
+  document.getElementById('usuario-empresas-lista').innerHTML = empresas.map(e => `
+    <label style="font-size:13px;display:flex;align-items:center;gap:8px">
+      <input type="checkbox" class="usuario-empresa-check" value="${e.id}" ${!todas && Array.isArray(empresaIds) && empresaIds.includes(e.id) ? 'checked' : ''} ${todas ? 'disabled' : ''}>
+      ${e.nombre}
+    </label>
+  `).join('') || '<span style="font-size:12px;color:var(--muted)">No hay empresas creadas todavia.</span>';
+}
+
+function toggleUsuarioTodasEmpresas() {
+  const todas = document.getElementById('usuario-todas-empresas').checked;
+  document.querySelectorAll('.usuario-empresa-check').forEach(chk => { chk.disabled = todas; });
+}
+
+function getUsuarioEmpresasFromForm() {
+  if (document.getElementById('usuario-todas-empresas').checked) return 'todas';
+  return Array.from(document.querySelectorAll('.usuario-empresa-check:checked')).map(chk => Number(chk.value));
+}
+
 function openModalUsuario() {
   document.getElementById('modal-usuario-title').textContent = 'Nuevo usuario';
   fillRolSelect();
   ['usuario-id','usuario-username','usuario-password','usuario-nombre','usuario-email'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('usuario-activo').checked = true;
+  renderUsuarioEmpresasChecklist([]);
   openModal('modal-usuario');
 }
 
@@ -3029,12 +3205,15 @@ function editarUsuario(id) {
   document.getElementById('usuario-email').value = u.email;
   document.getElementById('usuario-rol').value = u.roleId;
   document.getElementById('usuario-activo').checked = u.active;
+  renderUsuarioEmpresasChecklist(u.empresaIds || []);
   openModal('modal-usuario');
 }
 
 function guardarUsuario() {
   const username = document.getElementById('usuario-username').value.trim();
   if (!username) { showToast('El nombre de usuario es obligatorio'); return; }
+  const empresaIds = getUsuarioEmpresasFromForm();
+  if (empresaIds !== 'todas' && empresaIds.length === 0) { showToast('Selecciona al menos una empresa, o marca "Todas las empresas"'); return; }
   const usuarios = getUsers();
   const id = document.getElementById('usuario-id').value;
   const password = document.getElementById('usuario-password').value;
@@ -3042,7 +3221,8 @@ function guardarUsuario() {
     username, nombre: document.getElementById('usuario-nombre').value.trim(),
     email: document.getElementById('usuario-email').value.trim(),
     roleId: Number(document.getElementById('usuario-rol').value),
-    active: document.getElementById('usuario-activo').checked
+    active: document.getElementById('usuario-activo').checked,
+    empresaIds
   };
   if (id) {
     const i = usuarios.findIndex(x => x.id === Number(id));
@@ -3053,6 +3233,7 @@ function guardarUsuario() {
   saveUsers(usuarios);
   closeModal('modal-usuario');
   renderUsuarios();
+  if (getSession() && getSession().id === Number(id || 0)) renderSelectorEmpresa();
   showToast('Usuario guardado correctamente');
 }
 
@@ -3063,6 +3244,105 @@ function eliminarUsuario(id) {
   saveUsers(getUsers().filter(u => u.id !== id));
   renderUsuarios();
   showToast('Usuario eliminado');
+}
+
+// ===================== ADMIN: EMPRESAS =====================
+function renderEmpresas() {
+  const empresas = getEmpresas();
+  document.getElementById('tbody-empresas').innerHTML = empresas.map(e => `
+    <tr class="table-row" style="border-top:1px solid var(--border)">
+      <td class="px-4 py-2">${e.logo ? `<img src="${e.logo}" style="height:32px;max-width:100px;object-fit:contain">` : `<div class="icon-box" style="width:32px;height:32px"><i class="fas fa-building" style="color:var(--navy);font-size:14px"></i></div>`}</td>
+      <td class="px-4 py-2 font-medium">${e.nombre}</td>
+      <td class="px-4 py-2">${e.rut || '-'}</td>
+      <td class="px-4 py-2 text-center">
+        <button class="icon-btn" onclick="editarEmpresa(${e.id})"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn danger" onclick="eliminarEmpresa(${e.id})"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center" style="color:var(--muted)">Sin empresas registradas.</td></tr>';
+}
+
+function previsualizarLogoEmpresa(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('empresa-logo-preview');
+    img.src = e.target.result;
+    img.style.display = 'inline-block';
+    img.dataset.value = e.target.result;
+    document.getElementById('btn-quitar-logo-empresa').style.display = 'inline-flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function quitarLogoEmpresa() {
+  const img = document.getElementById('empresa-logo-preview');
+  img.src = ''; img.style.display = 'none'; img.dataset.value = '';
+  document.getElementById('empresa-logo-file').value = '';
+  document.getElementById('btn-quitar-logo-empresa').style.display = 'none';
+}
+
+function openModalEmpresa() {
+  document.getElementById('modal-empresa-title').textContent = 'Nueva empresa';
+  document.getElementById('empresa-id').value = '';
+  document.getElementById('empresa-nombre').value = '';
+  document.getElementById('empresa-rut').value = '';
+  quitarLogoEmpresa();
+  openModal('modal-empresa');
+}
+
+function editarEmpresa(id) {
+  const e = getEmpresas().find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('modal-empresa-title').textContent = 'Editar empresa';
+  document.getElementById('empresa-id').value = e.id;
+  document.getElementById('empresa-nombre').value = e.nombre;
+  document.getElementById('empresa-rut').value = e.rut || '';
+  quitarLogoEmpresa();
+  if (e.logo) {
+    const img = document.getElementById('empresa-logo-preview');
+    img.src = e.logo; img.style.display = 'inline-block'; img.dataset.value = e.logo;
+    document.getElementById('btn-quitar-logo-empresa').style.display = 'inline-flex';
+  }
+  openModal('modal-empresa');
+}
+
+function guardarEmpresa() {
+  const nombre = document.getElementById('empresa-nombre').value.trim();
+  if (!nombre) { showToast('El nombre de la empresa es obligatorio'); return; }
+  const empresas = getEmpresas();
+  const id = document.getElementById('empresa-id').value;
+  const logoImg = document.getElementById('empresa-logo-preview');
+  const data = {
+    nombre, rut: document.getElementById('empresa-rut').value.trim(),
+    logo: logoImg.dataset.value || null
+  };
+  if (id) {
+    const i = empresas.findIndex(x => x.id === Number(id));
+    empresas[i] = { ...empresas[i], ...data };
+  } else {
+    empresas.push({ id: uid(empresas), ...data });
+  }
+  saveEmpresas(empresas);
+  closeModal('modal-empresa');
+  renderEmpresas();
+  renderSelectorEmpresa();
+  showToast('Empresa guardada correctamente');
+}
+
+function eliminarEmpresa(id) {
+  if (getUsers().some(u => u.empresaIds !== 'todas' && Array.isArray(u.empresaIds) && u.empresaIds.includes(id))) {
+    showToast('No puedes eliminar una empresa asignada a un usuario'); return;
+  }
+  if (getClientes().some(c => c.empresaId === id)) {
+    showToast('No puedes eliminar una empresa que tiene clientes asociados'); return;
+  }
+  if (!confirm('¿Eliminar esta empresa?')) return;
+  saveEmpresas(getEmpresas().filter(e => e.id !== id));
+  renderEmpresas();
+  renderSelectorEmpresa();
+  showToast('Empresa eliminada');
 }
 
 // ===================== ADMIN: ROLES =====================
