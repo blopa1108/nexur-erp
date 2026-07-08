@@ -2223,9 +2223,12 @@ function renderPrefacturaItemsForm(servicios, prefillItems) {
     const moneda = existing ? existing.moneda : (s.moneda || 'CLP');
     return `
     <div class="item-row" data-concepto="${s.concepto}" data-moneda="${moneda}">
-      <span style="flex:1.4;font-size:13px;font-weight:600">${s.concepto} <span class="badge badge-gray">${moneda}</span></span>
+      <span style="flex:1.4;font-size:13px;font-weight:600">${s.concepto}</span>
       <input type="number" class="form-input pf-cant" min="0" value="${cant}" style="width:80px" oninput="recalcPrefactura()">
-      <input type="number" step="0.01" class="form-input pf-precio" min="0" value="${precio}" style="width:100px;background:var(--light-2);color:var(--muted)" disabled title="El valor solo se modifica desde Clientes">
+      <div style="display:flex;align-items:center;gap:4px;width:100px">
+        <input type="number" step="0.01" class="form-input pf-precio" min="0" value="${precio}" style="width:68px;background:var(--light-2);color:var(--muted)" disabled title="El valor solo se modifica desde Clientes">
+        <span class="badge badge-gray" style="flex-shrink:0">${moneda}</span>
+      </div>
       <span class="pf-subtotal" style="width:120px;text-align:right;font-weight:600;color:var(--navy)">${fmtMoney(moneda === 'UF' ? cant * precio * getValorUF() : cant * precio)}</span>
     </div>`;
   }).join('');
