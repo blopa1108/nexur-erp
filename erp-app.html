@@ -2211,10 +2211,8 @@ function renderPrefacturas() {
       <td class="px-4 py-2 text-right">${fmtMoney(p.total)}</td>
       <td class="px-4 py-2"><span class="badge ${badgeClass(p.estado)}">${p.estado}</span></td>
       <td class="px-4 py-2 text-center">
-        ${p.estado === 'Pendiente' ? `
-          <button class="icon-btn" title="Editar" onclick="editarPrefactura(${p.id})"><i class="fas fa-pen"></i></button>
-          <button class="icon-btn success" title="Emitir factura" onclick="emitirFacturaDesdePrefactura(${p.id})"><i class="fas fa-file-invoice"></i></button>
-        ` : `<span class="badge badge-blue" title="Ya se genero una factura desde esta prefactura">Facturada</span>`}
+        <button class="icon-btn" title="Editar" onclick="editarPrefactura(${p.id})"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn success" title="Emitir factura" onclick="emitirFacturaDesdePrefactura(${p.id})"><i class="fas fa-file-invoice"></i></button>
         <button class="icon-btn" title="Vista previa" onclick="verVistaPreviaPrefactura(${p.id})"><i class="fas fa-eye"></i></button>
         <button class="icon-btn" title="Descargar PDF" onclick="descargarPrefacturaPDF(${p.id})"><i class="fas fa-file-pdf"></i></button>
         <button class="icon-btn danger" title="Eliminar" onclick="eliminarPrefactura(${p.id})"><i class="fas fa-trash"></i></button>
@@ -2301,7 +2299,7 @@ function openModalPrefactura() {
 
 function editarPrefactura(id) {
   const p = getPrefacturas().find(x => x.id === id);
-  if (!p || p.estado !== 'Pendiente') return;
+  if (!p) return;
   fillClienteSelects();
   document.getElementById('prefactura-id').value = p.id;
   document.getElementById('prefactura-cliente').value = p.clienteId;
