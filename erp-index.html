@@ -218,11 +218,11 @@
       const raw = localStorage.getItem(ROLES_KEY);
       if (raw) return JSON.parse(raw);
       const defaults = [
-        { id:1, nombre:'Administrador', modulos:['dashboard','clientes','finanzas','rrhh','ventas','facturacion','admin'] },
-        { id:2, nombre:'Finanzas',      modulos:['dashboard','clientes','finanzas','facturacion'] },
-        { id:3, nombre:'RRHH',          modulos:['dashboard','rrhh'] },
-        { id:4, nombre:'Ventas',        modulos:['dashboard','clientes','ventas','facturacion'] },
-        { id:5, nombre:'Usuario (Solo Lectura)', modulos:['dashboard'] }
+        { id:1, nombre:'Administrador', modulos:['dashboard','clientes','finanzas','rrhh','ventas','facturacion','admin'], soloLectura:false },
+        { id:2, nombre:'Finanzas',      modulos:['dashboard','clientes','finanzas','facturacion'], soloLectura:false },
+        { id:3, nombre:'RRHH',          modulos:['dashboard','rrhh'], soloLectura:false },
+        { id:4, nombre:'Ventas',        modulos:['dashboard','clientes','ventas','facturacion'], soloLectura:false },
+        { id:5, nombre:'Usuario (Solo Lectura)', modulos:['dashboard','clientes','finanzas','rrhh','ventas','facturacion'], soloLectura:true }
       ];
       localStorage.setItem(ROLES_KEY, JSON.stringify(defaults));
       return defaults;
