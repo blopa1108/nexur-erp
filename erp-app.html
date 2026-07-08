@@ -1336,7 +1336,7 @@ function badgeClass(estado) {
     'Borrador':'badge-gray', 'Enviada':'badge-blue', 'Aceptada':'badge-green', 'Rechazada':'badge-red',
     'En proceso':'badge-blue', 'Completado':'badge-green', 'Cancelado':'badge-red',
     'Activo':'badge-green', 'Inactivo':'badge-gray', 'Presente':'badge-green', 'Ausente':'badge-red',
-    'Tardanza':'badge-yellow', 'Aprobada':'badge-green', 'Emitida':'badge-green'
+    'Tardanza':'badge-yellow', 'Aprobada':'badge-green', 'Emitida':'badge-yellow', 'Facturada':'badge-green'
   };
   return map[estado] || 'badge-gray';
 }
@@ -1496,7 +1496,7 @@ function getPrefacturas() {
   d = [
     { id:1, numero:'PRE-0001', clienteId:2, fecha: offsetDateISO(0, 4),
       items:[{concepto:'Minutos', cantidad:1200, precioUnitario:18, moneda:'CLP', subtotal:21600}, {concepto:'DID', cantidad:3, precioUnitario:6000, moneda:'CLP', subtotal:18000}],
-      total:39600, estado:'Pendiente' }
+      total:39600, estado:'Emitida' }
   ];
   saveData(PREFACTURAS_KEY, d);
   return d;
@@ -2322,7 +2322,7 @@ function guardarPrefactura() {
     prefacturas[i] = { ...prefacturas[i], clienteId, fecha, items, total };
   } else {
     const numero = 'PRE-' + String(uid(prefacturas)).padStart(4, '0');
-    prefacturas.push({ id: uid(prefacturas), numero, clienteId, fecha, items, total, estado: 'Pendiente' });
+    prefacturas.push({ id: uid(prefacturas), numero, clienteId, fecha, items, total, estado: 'Emitida' });
   }
   saveData(PREFACTURAS_KEY, prefacturas);
   closeModal('modal-prefactura');
@@ -2339,7 +2339,7 @@ function emitirFacturaDesdePrefactura(id) {
   const fecha = todayISO();
   facturas.push({ id: uid(facturas), numero, pedidoId: null, prefacturaId: p.id, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado: 'Pendiente' });
   saveData(FACTURAS_VENTA_KEY, facturas);
-  p.estado = 'Emitida';
+  p.estado = 'Facturada';
   saveData(PREFACTURAS_KEY, prefacturas);
   renderPrefacturas();
   actualizarNotificaciones();
