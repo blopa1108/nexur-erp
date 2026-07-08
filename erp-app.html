@@ -175,6 +175,17 @@
     .badge-orange { background:#FFF0EB; color:var(--orange-2); }
     .badge-gray   { background:#F3F4F6; color:#374151; }
 
+    /* -- BADGES ESTADO FACTURA (cobranza/factoring) -- */
+    .badge-mora          { background:#7F1D1D; color:#FFFFFF; }
+    .badge-emitido        { background:#2563EB; color:#FFFFFF; }
+    .badge-nula           { background:#FDE047; color:#713F12; }
+    .badge-porpagar       { background:#FB923C; color:#7C2D12; }
+    .badge-documentada    { background:#7C3AED; color:#FFFFFF; }
+    .badge-factorizado    { background:#059669; color:#FFFFFF; }
+    .badge-neteo          { background:#9CA3AF; color:#1F2937; }
+    .badge-normalizacion  { background:#DC2626; color:#FFFFFF; }
+    .badge-incobrable     { background:#111827; color:#FFFFFF; }
+
     /* -- LAYOUT -- */
     .content-area { flex:1; background:var(--light-2); min-height:calc(100vh - 68px); overflow-y:auto; }
     .page-title {
@@ -457,9 +468,16 @@
           <div class="flex justify-between items-center px-4 py-3" style="border-bottom:1px solid var(--border)">
             <select class="form-select" style="width:200px" id="filtro-cxc-estado" onchange="renderFacturas()">
               <option value="">Todos los estados</option>
-              <option value="Pendiente">Pendiente</option>
+              <option value="Mora">Mora</option>
+              <option value="Emitido">Emitido</option>
               <option value="Pagada">Pagada</option>
-              <option value="Vencida">Vencida</option>
+              <option value="Nula">Nula</option>
+              <option value="Por pagar">Por pagar</option>
+              <option value="Documentada">Documentada</option>
+              <option value="Factorizado">Factorizado</option>
+              <option value="En acuerdo neteo">En acuerdo neteo</option>
+              <option value="En acuerdo normalizacion">En acuerdo normalizacion</option>
+              <option value="Imposible de recuperar">Imposible de recuperar</option>
             </select>
             <div style="font-size:12px;color:var(--muted)">Generadas automaticamente al facturar un pedido en Ventas</div>
           </div>
@@ -966,7 +984,18 @@
     </div>
     <div class="grid grid-cols-2 gap-3 mb-4">
       <div><label class="form-label">Estado</label>
-        <select class="form-select" id="factura-estado"><option>Pendiente</option><option>Pagada</option><option>Vencida</option></select>
+        <select class="form-select" id="factura-estado">
+          <option>Mora</option>
+          <option>Emitido</option>
+          <option>Pagada</option>
+          <option>Nula</option>
+          <option>Por pagar</option>
+          <option>Documentada</option>
+          <option>Factorizado</option>
+          <option>En acuerdo neteo</option>
+          <option>En acuerdo normalizacion</option>
+          <option>Imposible de recuperar</option>
+        </select>
       </div>
       <div><label class="form-label">Fecha de cobro</label><input type="date" class="form-input" id="factura-fecha-cobro" /></div>
     </div>
@@ -1426,7 +1455,7 @@ function getFacturasPorCobrar() {
   const hoy = todayISO();
   const limite = addDaysISO(hoy, 3);
   const activaId = getEmpresaActivaId();
-  return getFacturasVenta().filter(f => f.empresaId === activaId && f.estado !== 'Pagada' && f.fechaCobro && f.fechaCobro <= limite);
+  return getFacturasVenta().filter(f => f.empresaId === activaId && facturaEstaPendienteDeCobro(f) && f.fechaCobro && f.fechaCobro <= limite);
 }
 
 function actualizarNotificaciones() {
@@ -1478,7 +1507,10 @@ function badgeClass(estado) {
     'Borrador':'badge-gray', 'Enviada':'badge-blue', 'Aceptada':'badge-green', 'Rechazada':'badge-red',
     'En proceso':'badge-blue', 'Completado':'badge-green', 'Cancelado':'badge-red',
     'Activo':'badge-green', 'Inactivo':'badge-gray', 'Presente':'badge-green', 'Ausente':'badge-red',
-    'Tardanza':'badge-yellow', 'Aprobada':'badge-green', 'Emitida':'badge-yellow', 'Facturada':'badge-green'
+    'Tardanza':'badge-yellow', 'Aprobada':'badge-green', 'Emitida':'badge-yellow', 'Facturada':'badge-green',
+    'Mora':'badge-mora', 'Emitido':'badge-emitido', 'Nula':'badge-nula', 'Por pagar':'badge-porpagar',
+    'Documentada':'badge-documentada', 'Factorizado':'badge-factorizado', 'En acuerdo neteo':'badge-neteo',
+    'En acuerdo normalizacion':'badge-normalizacion', 'Imposible de recuperar':'badge-incobrable'
   };
   return map[estado] || 'badge-gray';
 }
@@ -1678,8 +1710,8 @@ function getFacturasVenta() {
   const f3 = offsetDateISO(0, 2);
   d = [
     { id:1, empresaId:1, numero:'FAC-0001', pedidoId:1, prefacturaId:null, clienteId:1, fecha:f1, fechaVencimiento: addDaysISO(f1, 30), fechaCobro: addDaysISO(f1, 30), total:850000, estado:'Pagada' },
-    { id:2, empresaId:1, numero:'FAC-0002', pedidoId:null, prefacturaId:null, clienteId:3, fecha: f2, fechaVencimiento: addDaysISO(f2, 30), fechaCobro: addDaysISO(f2, 30), total:410000, estado:'Vencida' },
-    { id:3, empresaId:1, numero:'FAC-0003', pedidoId:null, prefacturaId:null, clienteId:2, fecha: f3, fechaVencimiento: addDaysISO(f3, 30), fechaCobro: addDaysISO(todayISO(), 2), total:620000, estado:'Pendiente' }
+    { id:2, empresaId:1, numero:'FAC-0002', pedidoId:null, prefacturaId:null, clienteId:3, fecha: f2, fechaVencimiento: addDaysISO(f2, 30), fechaCobro: addDaysISO(f2, 30), total:410000, estado:'Por pagar' },
+    { id:3, empresaId:1, numero:'FAC-0003', pedidoId:null, prefacturaId:null, clienteId:2, fecha: f3, fechaVencimiento: addDaysISO(f3, 30), fechaCobro: addDaysISO(todayISO(), 2), total:620000, estado:'Por pagar' }
   ];
   saveData(FACTURAS_VENTA_KEY, d);
   return d;
@@ -1777,7 +1809,9 @@ function getVacaciones() {
 // ===================== HELPERS DE RELACION =====================
 function clienteNombre(id) { const c = getClientes().find(x => x.id === id); return c ? c.nombre : '-'; }
 function empleadoNombre(id) { const e = getEmpleados().find(x => x.id === id); return e ? e.nombre : '-'; }
-function estadoFacturaCalc(f) { return (f.estado === 'Pendiente' && f.fechaVencimiento < todayISO()) ? 'Vencida' : f.estado; }
+function estadoFacturaCalc(f) { return (['Emitido','Por pagar'].includes(f.estado) && f.fechaVencimiento < todayISO()) ? 'Mora' : f.estado; }
+const ESTADOS_FACTURA_CERRADOS = ['Pagada', 'Factorizado', 'Nula', 'Imposible de recuperar'];
+function facturaEstaPendienteDeCobro(f) { return !ESTADOS_FACTURA_CERRADOS.includes(estadoFacturaCalc(f)); }
 function saldoCuenta(cuentaId) {
   const cuenta = getCuentas().find(c => c.id === cuentaId);
   if (!cuenta) return 0;
@@ -1802,7 +1836,7 @@ function renderDashboard() {
                    + facturas.filter(f => f.fecha.slice(0,7) === now.toISOString().slice(0,7)).reduce((s,f)=>s+f.total,0);
   const gastosMes = gastos.filter(g => g.fecha.slice(0,7) === now.toISOString().slice(0,7)).reduce((s,g)=>s+Number(g.monto),0);
   const saldoTotal = cuentas.reduce((s,c)=>s+saldoCuenta(c.id),0);
-  const cxc = facturas.filter(f => estadoFacturaCalc(f) !== 'Pagada').reduce((s,f)=>s+f.total,0);
+  const cxc = facturas.filter(f => facturaEstaPendienteDeCobro(f)).reduce((s,f)=>s+f.total,0);
   const empleadosActivos = empleados.filter(e => e.estado === 'Activo').length;
 
   document.getElementById('kpi-ventas-mes').textContent = fmtMoney(ventasMes);
@@ -2249,7 +2283,7 @@ function facturarPedido(pedidoId) {
   const facturas = getFacturasVenta();
   const numero = 'FAC-' + String(uid(facturas)).padStart(4,'0');
   const fecha = todayISO();
-  facturas.push({ id: uid(facturas), empresaId: p.empresaId, numero, pedidoId: p.id, prefacturaId: null, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado:'Pendiente' });
+  facturas.push({ id: uid(facturas), empresaId: p.empresaId, numero, pedidoId: p.id, prefacturaId: null, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado:'Emitido' });
   saveData(FACTURAS_VENTA_KEY, facturas);
   renderPedidos();
   actualizarNotificaciones();
@@ -2289,7 +2323,7 @@ function renderFacturasVentas() {
       <td class="px-4 py-2 text-right">${fmtMoney(f.total)}</td>
       <td class="px-4 py-2"><span class="badge ${badgeClass(estadoFacturaCalc(f))}">${estadoFacturaCalc(f)}</span></td>
       <td class="px-4 py-2 text-center">
-        ${f.estado !== 'Pagada' ? `<button class="icon-btn success" title="Marcar pagada" onclick="marcarFacturaPagada(${f.id})"><i class="fas fa-check"></i></button>` : ''}
+        ${facturaEstaPendienteDeCobro(f) ? `<button class="icon-btn success" title="Marcar pagada" onclick="marcarFacturaPagada(${f.id})"><i class="fas fa-check"></i></button>` : ''}
         <button class="icon-btn" title="Editar" onclick="editarFactura(${f.id})"><i class="fas fa-pen"></i></button>
         <button class="icon-btn danger" title="Eliminar" onclick="eliminarFactura(${f.id})"><i class="fas fa-trash"></i></button>
       </td>
@@ -2318,7 +2352,7 @@ function openModalFactura() {
   document.getElementById('factura-numero').value = 'FAC-' + String(uid(facturas)).padStart(4, '0');
   document.getElementById('factura-fecha').value = todayISO();
   document.getElementById('factura-monto').value = '';
-  document.getElementById('factura-estado').value = 'Pendiente';
+  document.getElementById('factura-estado').value = 'Emitido';
   document.getElementById('factura-fecha-cobro').value = addDaysISO(todayISO(), 30);
   openModal('modal-factura');
 }
@@ -2511,7 +2545,7 @@ function emitirFacturaDesdePrefactura(id) {
   const facturas = getFacturasVenta();
   const numero = 'FAC-' + String(uid(facturas)).padStart(4, '0');
   const fecha = todayISO();
-  facturas.push({ id: uid(facturas), empresaId: p.empresaId, numero, pedidoId: null, prefacturaId: p.id, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado: 'Pendiente' });
+  facturas.push({ id: uid(facturas), empresaId: p.empresaId, numero, pedidoId: null, prefacturaId: p.id, clienteId: p.clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro: addDaysISO(fecha, 30), total: p.total, estado: 'Emitido' });
   saveData(FACTURAS_VENTA_KEY, facturas);
   p.estado = 'Facturada';
   saveData(PREFACTURAS_KEY, prefacturas);
@@ -2653,14 +2687,14 @@ function renderFinResumen() {
   const facturas = facturasDeEmpresaActiva();
   const gastos = getGastos();
   const cuentas = getCuentas();
-  const cxc = facturas.filter(f => estadoFacturaCalc(f) !== 'Pagada').reduce((s,f)=>s+f.total,0);
+  const cxc = facturas.filter(f => facturaEstaPendienteDeCobro(f)).reduce((s,f)=>s+f.total,0);
   const cxp = gastos.filter(g => g.estado === 'Pendiente').reduce((s,g)=>s+Number(g.monto),0);
   const saldo = cuentas.reduce((s,c)=>s+saldoCuenta(c.id),0);
   document.getElementById('fin-kpi-cxc').textContent = fmtMoney(cxc);
   document.getElementById('fin-kpi-cxp').textContent = fmtMoney(cxp);
   document.getElementById('fin-kpi-saldo').textContent = fmtMoney(saldo);
 
-  const pendientes = facturas.filter(f => estadoFacturaCalc(f) !== 'Pagada');
+  const pendientes = facturas.filter(f => facturaEstaPendienteDeCobro(f));
   document.getElementById('tbody-fin-resumen-facturas').innerHTML = pendientes.map(f => `
     <tr class="table-row" style="border-top:1px solid var(--border)">
       <td class="px-4 py-2">${f.numero}</td><td class="px-4 py-2">${clienteNombre(f.clienteId)}</td>
@@ -2682,7 +2716,7 @@ function renderFacturas() {
       <td class="px-4 py-2 text-right">${fmtMoney(f.total)}</td>
       <td class="px-4 py-2"><span class="badge ${badgeClass(estadoFacturaCalc(f))}">${estadoFacturaCalc(f)}</span></td>
       <td class="px-4 py-2 text-center">
-        ${f.estado !== 'Pagada' ? `<button class="icon-btn success" title="Marcar pagada" onclick="marcarFacturaPagada(${f.id})"><i class="fas fa-check"></i></button>` : ''}
+        ${facturaEstaPendienteDeCobro(f) ? `<button class="icon-btn success" title="Marcar pagada" onclick="marcarFacturaPagada(${f.id})"><i class="fas fa-check"></i></button>` : ''}
       </td>
     </tr>
   `).join('') || '<tr><td colspan="7" class="px-4 py-6 text-center" style="color:var(--muted)">Sin facturas.</td></tr>';
