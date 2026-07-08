@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -913,6 +914,17 @@
   </div>
 </div>
 
+<!-- ===== MODAL: VISTA PREVIA PREFACTURA ===== -->
+<div class="modal" id="modal-prefactura-preview">
+  <div class="modal-box wide">
+    <div id="prefactura-preview-content"></div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button class="btn-secondary" onclick="closeModal('modal-prefactura-preview')">Cerrar</button>
+      <button class="btn-primary" onclick="descargarPrefacturaPDF(prefacturaPreviewId)"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MODAL: FACTURA ===== -->
 <div class="modal" id="modal-factura">
   <div class="modal-box">
@@ -1324,7 +1336,7 @@ function badgeClass(estado) {
     'Borrador':'badge-gray', 'Enviada':'badge-blue', 'Aceptada':'badge-green', 'Rechazada':'badge-red',
     'En proceso':'badge-blue', 'Completado':'badge-green', 'Cancelado':'badge-red',
     'Activo':'badge-green', 'Inactivo':'badge-gray', 'Presente':'badge-green', 'Ausente':'badge-red',
-    'Tardanza':'badge-yellow', 'Aprobada':'badge-green'
+    'Tardanza':'badge-yellow', 'Aprobada':'badge-green', 'Emitida':'badge-green'
   };
   return map[estado] || 'badge-gray';
 }
@@ -1484,7 +1496,7 @@ function getPrefacturas() {
   d = [
     { id:1, numero:'PRE-0001', clienteId:2, fecha: offsetDateISO(0, 4),
       items:[{concepto:'Minutos', cantidad:1200, precioUnitario:18, moneda:'CLP', subtotal:21600}, {concepto:'DID', cantidad:3, precioUnitario:6000, moneda:'CLP', subtotal:18000}],
-      total:39600, estado:'Borrador' }
+      total:39600, estado:'Pendiente' }
   ];
   saveData(PREFACTURAS_KEY, d);
   return d;
@@ -2197,13 +2209,15 @@ function renderPrefacturas() {
       <td class="px-4 py-2">${clienteNombre(p.clienteId)}</td>
       <td class="px-4 py-2">${fmtDate(p.fecha)}</td>
       <td class="px-4 py-2 text-right">${fmtMoney(p.total)}</td>
-      <td class="px-4 py-2"><span class="badge ${p.estado === 'Emitida' ? 'badge-green' : 'badge-gray'}">${p.estado}</span></td>
+      <td class="px-4 py-2"><span class="badge ${badgeClass(p.estado)}">${p.estado}</span></td>
       <td class="px-4 py-2 text-center">
-        ${p.estado === 'Borrador' ? `
-          <button class="icon-btn" onclick="editarPrefactura(${p.id})"><i class="fas fa-pen"></i></button>
+        ${p.estado === 'Pendiente' ? `
+          <button class="icon-btn" title="Editar" onclick="editarPrefactura(${p.id})"><i class="fas fa-pen"></i></button>
           <button class="icon-btn success" title="Emitir factura" onclick="emitirFacturaDesdePrefactura(${p.id})"><i class="fas fa-file-invoice"></i></button>
-          <button class="icon-btn danger" onclick="eliminarPrefactura(${p.id})"><i class="fas fa-trash"></i></button>
-        ` : `<span class="badge badge-blue">Facturada</span>`}
+        ` : `<span class="badge badge-blue" title="Ya se genero una factura desde esta prefactura">Facturada</span>`}
+        <button class="icon-btn" title="Vista previa" onclick="verVistaPreviaPrefactura(${p.id})"><i class="fas fa-eye"></i></button>
+        <button class="icon-btn" title="Descargar PDF" onclick="descargarPrefacturaPDF(${p.id})"><i class="fas fa-file-pdf"></i></button>
+        <button class="icon-btn danger" title="Eliminar" onclick="eliminarPrefactura(${p.id})"><i class="fas fa-trash"></i></button>
       </td>
     </tr>
   `).join('') || '<tr><td colspan="6" class="px-4 py-6 text-center" style="color:var(--muted)">Sin prefacturas registradas.</td></tr>';
@@ -2287,7 +2301,7 @@ function openModalPrefactura() {
 
 function editarPrefactura(id) {
   const p = getPrefacturas().find(x => x.id === id);
-  if (!p || p.estado !== 'Borrador') return;
+  if (!p || p.estado !== 'Pendiente') return;
   fillClienteSelects();
   document.getElementById('prefactura-id').value = p.id;
   document.getElementById('prefactura-cliente').value = p.clienteId;
@@ -2310,7 +2324,7 @@ function guardarPrefactura() {
     prefacturas[i] = { ...prefacturas[i], clienteId, fecha, items, total };
   } else {
     const numero = 'PRE-' + String(uid(prefacturas)).padStart(4, '0');
-    prefacturas.push({ id: uid(prefacturas), numero, clienteId, fecha, items, total, estado: 'Borrador' });
+    prefacturas.push({ id: uid(prefacturas), numero, clienteId, fecha, items, total, estado: 'Pendiente' });
   }
   saveData(PREFACTURAS_KEY, prefacturas);
   closeModal('modal-prefactura');
@@ -2339,6 +2353,111 @@ function eliminarPrefactura(id) {
   saveData(PREFACTURAS_KEY, getPrefacturas().filter(p => p.id !== id));
   renderPrefacturas();
   showToast('Prefactura eliminada');
+}
+
+// ===================== PREFACTURA: VISTA PREVIA / PDF =====================
+let prefacturaPreviewId = null;
+
+function itemValorTexto(item) {
+  return item.moneda === 'UF' ? `UF ${item.precioUnitario}` : fmtMoney(item.precioUnitario);
+}
+
+function verVistaPreviaPrefactura(id) {
+  const p = getPrefacturas().find(x => x.id === id);
+  if (!p) return;
+  const cliente = getClientes().find(c => c.id === p.clienteId) || {};
+  prefacturaPreviewId = id;
+  document.getElementById('prefactura-preview-content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--navy);padding-bottom:14px;margin-bottom:18px">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--navy)">NEXUR ERP</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Gestion empresarial</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:15px;font-weight:700;color:var(--orange)">PREFACTURA</div>
+        <div style="font-size:14px;font-weight:600;color:var(--navy)">${p.numero}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Fecha: ${fmtDate(p.fecha)}</div>
+        <span class="badge ${badgeClass(p.estado)}" style="margin-top:4px;display:inline-block">${p.estado}</span>
+      </div>
+    </div>
+    <div class="mb-4">
+      <div class="form-label">Cliente</div>
+      <div style="font-size:14px;font-weight:600">${cliente.nombre || '-'}</div>
+      <div style="font-size:12px;color:var(--muted)">${[cliente.ruc, cliente.email, cliente.telefono].filter(Boolean).join(' · ')}</div>
+    </div>
+    <table class="w-full text-sm mb-4">
+      <thead class="table-header"><tr>
+        <th class="text-left px-3 py-2">Concepto</th>
+        <th class="text-right px-3 py-2">Cantidad</th>
+        <th class="text-right px-3 py-2">Valor unitario</th>
+        <th class="text-right px-3 py-2">Subtotal</th>
+      </tr></thead>
+      <tbody>
+        ${p.items.map(item => `
+          <tr style="border-top:1px solid var(--border)">
+            <td class="px-3 py-2">${item.concepto}</td>
+            <td class="px-3 py-2 text-right">${item.cantidad}</td>
+            <td class="px-3 py-2 text-right">${itemValorTexto(item)}</td>
+            <td class="px-3 py-2 text-right">${fmtMoney(item.subtotal)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div class="text-right" style="font-size:17px;font-weight:700;color:var(--navy)">Total: ${fmtMoney(p.total)}</div>
+  `;
+  openModal('modal-prefactura-preview');
+}
+
+function descargarPrefacturaPDF(id) {
+  const p = getPrefacturas().find(x => x.id === id);
+  if (!p) return;
+  const cliente = getClientes().find(c => c.id === p.clienteId) || {};
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 20;
+
+  doc.setFontSize(16); doc.setTextColor(0, 27, 114); doc.text('NEXUR ERP', 14, y);
+  doc.setFontSize(9); doc.setTextColor(107, 122, 153); doc.text('Gestion empresarial', 14, y + 6);
+  doc.setFontSize(14); doc.setTextColor(255, 79, 0); doc.text('PREFACTURA', 196, y, { align: 'right' });
+  doc.setFontSize(11); doc.setTextColor(26, 31, 54); doc.text(p.numero, 196, y + 6, { align: 'right' });
+  doc.setFontSize(9); doc.setTextColor(107, 122, 153);
+  doc.text('Fecha: ' + fmtDate(p.fecha), 196, y + 12, { align: 'right' });
+  doc.text('Estado: ' + p.estado, 196, y + 17, { align: 'right' });
+
+  y += 28;
+  doc.setDrawColor(221, 227, 240); doc.line(14, y, 196, y);
+  y += 9;
+  doc.setFontSize(10); doc.setTextColor(26, 31, 54);
+  doc.text('Cliente: ' + (cliente.nombre || '-'), 14, y); y += 6;
+  doc.text('RUC/RUT: ' + (cliente.ruc || '-'), 14, y); y += 6;
+  doc.text('Email: ' + (cliente.email || '-'), 14, y); y += 12;
+
+  doc.setFontSize(9); doc.setTextColor(0, 27, 114);
+  doc.text('Concepto', 14, y);
+  doc.text('Cantidad', 110, y, { align: 'right' });
+  doc.text('Valor unit.', 155, y, { align: 'right' });
+  doc.text('Subtotal', 196, y, { align: 'right' });
+  y += 4;
+  doc.line(14, y, 196, y);
+  y += 7;
+
+  doc.setFontSize(9); doc.setTextColor(26, 31, 54);
+  p.items.forEach(item => {
+    doc.text(String(item.concepto), 14, y);
+    doc.text(String(item.cantidad), 110, y, { align: 'right' });
+    doc.text(itemValorTexto(item), 155, y, { align: 'right' });
+    doc.text(fmtMoney(item.subtotal), 196, y, { align: 'right' });
+    y += 7;
+  });
+
+  y += 3;
+  doc.line(14, y, 196, y);
+  y += 10;
+  doc.setFontSize(13); doc.setTextColor(0, 27, 114);
+  doc.text('Total: ' + fmtMoney(p.total), 196, y, { align: 'right' });
+
+  doc.save(`${p.numero}.pdf`);
+  showToast(`PDF ${p.numero}.pdf descargado`);
 }
 
 // ===================== FINANZAS: RESUMEN / CXC =====================
