@@ -999,6 +999,10 @@
       </div>
       <div><label class="form-label">Fecha de cobro</label><input type="date" class="form-input" id="factura-fecha-cobro" /></div>
     </div>
+    <div class="mb-4">
+      <label class="form-label">Nota / Observacion (opcional)</label>
+      <textarea class="form-textarea" id="factura-nota" rows="2" placeholder="Ej: en negociacion con el cliente, factura reclamada por diferencia de monto..."></textarea>
+    </div>
     <div class="flex justify-end gap-2">
       <button class="btn-secondary" onclick="closeModal('modal-factura')">Cancelar</button>
       <button class="btn-primary" onclick="guardarFactura()"><i class="fas fa-save"></i> Guardar</button>
@@ -1810,6 +1814,10 @@ function getVacaciones() {
 function clienteNombre(id) { const c = getClientes().find(x => x.id === id); return c ? c.nombre : '-'; }
 function empleadoNombre(id) { const e = getEmpleados().find(x => x.id === id); return e ? e.nombre : '-'; }
 function estadoFacturaCalc(f) { return (['Emitido','Por pagar'].includes(f.estado) && f.fechaVencimiento < todayISO()) ? 'Mora' : f.estado; }
+function notaIconHTML(f) {
+  if (!f.nota) return '';
+  return ` <i class="fas fa-note-sticky" title="${f.nota.replace(/"/g, '&quot;')}" style="color:var(--orange);cursor:help;margin-left:4px"></i>`;
+}
 const ESTADOS_FACTURA_CERRADOS = ['Pagada', 'Factorizado', 'Nula', 'Imposible de recuperar'];
 function facturaEstaPendienteDeCobro(f) { return !ESTADOS_FACTURA_CERRADOS.includes(estadoFacturaCalc(f)); }
 function saldoCuenta(cuentaId) {
@@ -2321,7 +2329,7 @@ function renderFacturasVentas() {
       <td class="px-4 py-2">${fmtDate(f.fechaVencimiento)}</td>
       <td class="px-4 py-2">${fmtDate(f.fechaCobro)}</td>
       <td class="px-4 py-2 text-right">${fmtMoney(f.total)}</td>
-      <td class="px-4 py-2"><span class="badge ${badgeClass(estadoFacturaCalc(f))}">${estadoFacturaCalc(f)}</span></td>
+      <td class="px-4 py-2"><span class="badge ${badgeClass(estadoFacturaCalc(f))}">${estadoFacturaCalc(f)}</span>${notaIconHTML(f)}</td>
       <td class="px-4 py-2 text-center">
         ${facturaEstaPendienteDeCobro(f) ? `<button class="icon-btn success" title="Marcar pagada" onclick="marcarFacturaPagada(${f.id})"><i class="fas fa-check"></i></button>` : ''}
         <button class="icon-btn" title="Editar" onclick="editarFactura(${f.id})"><i class="fas fa-pen"></i></button>
@@ -2354,6 +2362,7 @@ function openModalFactura() {
   document.getElementById('factura-monto').value = '';
   document.getElementById('factura-estado').value = 'Emitido';
   document.getElementById('factura-fecha-cobro').value = addDaysISO(todayISO(), 30);
+  document.getElementById('factura-nota').value = '';
   openModal('modal-factura');
 }
 
@@ -2369,6 +2378,7 @@ function editarFactura(id) {
   document.getElementById('factura-monto').value = f.total;
   document.getElementById('factura-estado').value = f.estado;
   document.getElementById('factura-fecha-cobro').value = f.fechaCobro || '';
+  document.getElementById('factura-nota').value = f.nota || '';
   openModal('modal-factura');
 }
 
@@ -2381,13 +2391,14 @@ function guardarFactura() {
   const fecha = document.getElementById('factura-fecha').value || todayISO();
   const fechaCobro = document.getElementById('factura-fecha-cobro').value || null;
   const estado = document.getElementById('factura-estado').value;
+  const nota = document.getElementById('factura-nota').value.trim();
   const facturas = getFacturasVenta();
   const id = document.getElementById('factura-id').value;
   if (id) {
     const i = facturas.findIndex(x => x.id === Number(id));
-    facturas[i] = { ...facturas[i], clienteId, numero, fecha, total: monto, estado, fechaCobro };
+    facturas[i] = { ...facturas[i], clienteId, numero, fecha, total: monto, estado, fechaCobro, nota };
   } else {
-    facturas.push({ id: uid(facturas), empresaId: getEmpresaActivaId(), numero, pedidoId: null, prefacturaId: null, clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro, total: monto, estado });
+    facturas.push({ id: uid(facturas), empresaId: getEmpresaActivaId(), numero, pedidoId: null, prefacturaId: null, clienteId, fecha, fechaVencimiento: addDaysISO(fecha, 30), fechaCobro, total: monto, estado, nota });
   }
   saveData(FACTURAS_VENTA_KEY, facturas);
   closeModal('modal-factura');
@@ -2700,7 +2711,7 @@ function renderFinResumen() {
       <td class="px-4 py-2">${f.numero}</td><td class="px-4 py-2">${clienteNombre(f.clienteId)}</td>
       <td class="px-4 py-2">${fmtDate(f.fechaVencimiento)}</td>
       <td class="px-4 py-2 text-right">${fmtMoney(f.total)}</td>
-      <td class="px-4 py-2"><span class="badge ${badgeClass(estadoFacturaCalc(f))}">${estadoFacturaCalc(f)}</span></td>
+      <td class="px-4 py-2"><span class="badge ${badgeClass(estadoFacturaCalc(f))}">${estadoFacturaCalc(f)}</span>${notaIconHTML(f)}</td>
     </tr>
   `).join('') || '<tr><td colspan="5" class="px-4 py-6 text-center" style="color:var(--muted)">No hay facturas pendientes.</td></tr>';
 }
@@ -2714,7 +2725,7 @@ function renderFacturas() {
       <td class="px-4 py-2 font-medium">${f.numero}</td><td class="px-4 py-2">${clienteNombre(f.clienteId)}</td>
       <td class="px-4 py-2">${fmtDate(f.fecha)}</td><td class="px-4 py-2">${fmtDate(f.fechaVencimiento)}</td>
       <td class="px-4 py-2 text-right">${fmtMoney(f.total)}</td>
-      <td class="px-4 py-2"><span class="badge ${badgeClass(estadoFacturaCalc(f))}">${estadoFacturaCalc(f)}</span></td>
+      <td class="px-4 py-2"><span class="badge ${badgeClass(estadoFacturaCalc(f))}">${estadoFacturaCalc(f)}</span>${notaIconHTML(f)}</td>
       <td class="px-4 py-2 text-center">
         ${facturaEstaPendienteDeCobro(f) ? `<button class="icon-btn success" title="Marcar pagada" onclick="marcarFacturaPagada(${f.id})"><i class="fas fa-check"></i></button>` : ''}
       </td>
